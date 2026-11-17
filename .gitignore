@@ -1,11 +1,52 @@
+# --- Private notes, inventory and evidence: never public ---
 private/
+
+# --- Pi-hole Teleporter backups and other archives (hold settings and secrets) ---
 *.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+backups/
+
+# --- Ansible secrets and runtime files ---
 .vault_pass*
-.env
+vault_pass*
+*.vault_pass
+*.retry
+ansible.log
+.ansible/
+
+# --- Keys, certificates and env files ---
+# Private keys by extension, and SSH keys by name (they have no extension)
 *.key
 *.pem
-*.retry
+*.p12
+*.pfx
+id_rsa
+id_ecdsa
+id_ed25519
+github_wsl2
+homelab_v2
+ansible_homelab
+.env
+.env.*
+!.env.example
+
+# --- Python and tooling caches ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+.cache/
+
+# --- Editors ---
 .vscode/
+*.swp
+*~
+
+# --- Windows, OneDrive and macOS junk ---
 *Zone.Identifier
 Thumbs.db
 desktop.ini
+.DS_Store

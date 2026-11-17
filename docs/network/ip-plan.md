@@ -44,8 +44,6 @@ The AT&T BGW320 reportedly accepts 192.168.x.x and 172.16.x.x LAN ranges but not
 | 192.168.77.50 | Ubuntu test VM | Reservation |
 | 192.168.77.51 | OPNsense lab WAN (Week 11) | Reservation |
 | 192.168.77.52 | Printer | Reservation |
-| 192.168.77.53 | Game console | Reservation |
-| 192.168.77.54 | Game console | Reservation |
 
 Phones, tablets and watches use private (randomized) MAC addresses. A reservation only works if the device's private address is set to **Fixed** for this network.
 

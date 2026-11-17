@@ -1,0 +1,11 @@
+private/
+*.zip
+.vault_pass*
+.env
+*.key
+*.pem
+*.retry
+.vscode/
+*Zone.Identifier
+Thumbs.db
+desktop.ini

@@ -118,7 +118,6 @@ test-homelab : ok=4  changed=0  unreachable=0  failed=0  skipped=0  rescued=0  i
 - **Week 3:** consider passwordless sudo for the Ansible user (no `-K` on every run, and no password prompt for sudo-rs to get wrong). `bootstrap.yml` splits into the base role's task files. Add `autoremove: true` to clean up old kernels.
 - **Week 4:** the become password moves into Ansible Vault.
 - **Phased updates:** 5 packages (`fwupd`, `snapd` and others) were held back. A later run will show them as `changed`; that's Ubuntu's staged rollout, not drift.
-- **Collection version:** pin `community.general` to a version range in `requirements.yml` so a fresh machine installs the same major version.
 
 ## What I'd do differently
 

@@ -1,0 +1,35 @@
+---
+base_packages:
+  - git
+  - curl
+  - wget
+  - vim
+  - htop
+  - dnsutils
+  - ufw
+
+base_timezone: Etc/UTC
+
+base_ssh_password_authentication: "no"
+
+base_ssh_kbd_interactive_authentication: "no"
+
+base_ssh_permit_root_login: "no"
+
+base_ssh_pubkey_authentication: "yes"
+
+base_ssh_max_auth_tries: 3
+
+# Extra ports to allow (SSH is always allowed separately). Each entry:
+#  - {port: "53", proto: udp, comment: DNS}
+base_ufw_allowed: []
+
+base_auto_upgrades_update_package_lists: 1
+
+base_auto_upgrades_unattended_upgrade: 1
+
+base_auto_upgrades_autoclean_interval: 7
+
+base_auto_upgrades_reboot: true
+
+base_auto_upgrades_reboot_time: "04:00"

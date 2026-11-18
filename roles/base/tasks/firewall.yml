@@ -1,0 +1,27 @@
+---
+- name: Allow SSH through the firewall
+  community.general.ufw:
+    rule: limit
+    port: "22"
+    proto: tcp
+    comment: SSH
+
+- name: Allow additional ports through the firewall
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto | default('tcp') }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ base_ufw_allowed }}"
+
+- name: Set default firewall policies
+  community.general.ufw:
+    default: "{{ item.policy }}"
+    direction: "{{ item.direction }}"
+  loop:
+    - { direction: incoming, policy: deny }
+    - { direction: outgoing, policy: allow }
+
+- name: Enable the firewall
+  community.general.ufw:
+    state: enabled

@@ -2,7 +2,7 @@
 
 My home lab, built from scratch with Ansible and Docker: hardened, tested on a VM first, and rebuildable with one command.
 
-**Status:** Week 2 of 12. A bootstrap playbook updates the test VM, installs base packages and sets the timezone; no services are deployed yet.
+**Status:** Week 3 of 12. A `base` role hardens SSH (keys only, no root login), turns on a deny-by-default UFW firewall, installs security updates automatically and sets the hostname and timezone. No services are deployed yet.
 
 ## What this will build
 
@@ -23,10 +23,21 @@ Tested with ansible-core 2.21.6 (ansible 14.6.0) against Ubuntu Server 26.04 LTS
 
 ```bash
 ansible-galaxy collection install -r requirements.yml
-ansible-playbook playbooks/bootstrap.yml -K
+ansible-playbook playbooks/site.yml -K
 ```
 
-`-K` asks for the server user's sudo password. Hosts and variables live in `inventories/test/`.
+`-K` asks for the server user's sudo password. Hosts and variables live in `inventories/test/`; the role's settings and their defaults are in [`roles/base/`](roles/base/README.md).
+
+Run one part of the role with tags: `updates`, `packages`, `system`, `ssh` or `firewall`. For example, `ansible-playbook playbooks/site.yml -K --tags firewall`. Preview any run with `--check --diff`.
+
+## Security
+
+[Security baseline](docs/security-baseline.md): every control the `base` role applies, how to verify it on a running server, the Security+ concept it maps to, and the risks accepted along the way.
+
+- Secrets will live in Ansible Vault; the vault password file stays outside the repo.
+- GitHub secret scanning and push protection are on.
+- Private notes, the device inventory and Pi-hole backups never enter the repo (see `.gitignore`).
+- Known limitation: the home network is one flat subnet until the segmentation lab in Week 11.
 
 ## Network docs
 
@@ -40,7 +51,7 @@ ansible-playbook playbooks/bootstrap.yml -K
 - [x] Week 0: Map the home network, re-address the LAN, remove double NAT ([docs](docs/network/))
 - [x] Week 1: Foundations: control node, test VM, repo ([build log](docs/build-log/week-01.md))
 - [x] Week 2: Ansible fundamentals: inventory, `ansible.cfg` and an idempotent bootstrap playbook ([build log](docs/build-log/week-02.md))
-- [ ] Week 3: Base host role (hardening)
+- [x] Week 3: Base host role: SSH hardening, UFW firewall, automatic security updates ([build log](docs/build-log/week-03.md), [security baseline](docs/security-baseline.md))
 - [ ] Week 4: Secrets with Ansible Vault + Docker Engine
 - [ ] Week 5: Portainer, deployed by Ansible
 - [ ] Week 6: DNS stack (Pi-hole + Unbound from Git)
@@ -50,13 +61,6 @@ ansible-playbook playbooks/bootstrap.yml -K
 - [ ] Week 10: Production cutover (v2.0.0)
 - [ ] Week 11: Network segmentation lab: OPNsense VLANs + Suricata (v2.1.0)
 - [ ] Week 12: WireGuard remote access (v2.2.0)
-
-## Security notes
-
-- Secrets will live in Ansible Vault; the vault password file stays outside the repo.
-- GitHub secret scanning and push protection are on.
-- Private notes, the device inventory and Pi-hole backups never enter the repo (see `.gitignore`).
-- Known limitation: the home network is one flat subnet until the segmentation lab in Week 11.
 
 ## v1 → v2
 

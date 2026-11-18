@@ -1,0 +1,6 @@
+---
+- name: Apply base role to homelab servers
+  hosts: homelab
+  become: true
+  roles:
+    - base

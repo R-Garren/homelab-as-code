@@ -1,0 +1,20 @@
+---
+- name: Update apt cache and upgrade packages
+  ansible.builtin.import_tasks: updates.yml
+  tags: updates
+
+- name: Install required packages
+  ansible.builtin.import_tasks: packages.yml
+  tags: packages
+
+- name: Set system timezone
+  ansible.builtin.import_tasks: system.yml
+  tags: system
+
+- name: Configure SSH
+  ansible.builtin.import_tasks: ssh.yml
+  tags: ssh
+
+- name: Configure firewall
+  ansible.builtin.import_tasks: firewall.yml
+  tags: firewall

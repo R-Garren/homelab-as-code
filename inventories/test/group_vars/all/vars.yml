@@ -1,0 +1,10 @@
+---
+ansible_python_interpreter: /usr/bin/python3
+
+base_packages:
+  - git
+  - curl
+  - wget
+  - vim
+  - htop
+  - dnsutils

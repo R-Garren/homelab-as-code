@@ -2,7 +2,7 @@
 
 My home lab, built from scratch with Ansible and Docker: hardened, tested on a VM first, and rebuildable with one command.
 
-**Status:** Week 1 of 12. The control node and test VM are ready; nothing is deployed by this repo yet.
+**Status:** Week 2 of 12. A bootstrap playbook updates the test VM, installs base packages and sets the timezone; no services are deployed yet.
 
 ## What this will build
 
@@ -17,6 +17,17 @@ One Ubuntu Server 26.04 LTS host (a ThinkPad 11e) running:
 
 Ansible owns the host: packages, SSH, firewall and Docker. Portainer owns the apps, deployed as Git-repository stacks from `stacks/`. Every change runs on a VirtualBox test VM before it touches production. Pinned image versions will be listed here once the stacks land.
 
+## Run it
+
+Tested with ansible-core 2.21.6 (ansible 14.6.0) against Ubuntu Server 26.04 LTS. Older ansible-core versions can hang on Ubuntu's sudo-rs ([ADR 0001](docs/adr/0001-keep-sudo-rs.md)).
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook playbooks/bootstrap.yml -K
+```
+
+`-K` asks for the server user's sudo password. Hosts and variables live in `inventories/test/`.
+
 ## Network docs
 
 - [Current topology](docs/network/current-topology.md)
@@ -28,7 +39,7 @@ Ansible owns the host: packages, SSH, firewall and Docker. Portainer owns the ap
 
 - [x] Week 0: Map the home network, re-address the LAN, remove double NAT ([docs](docs/network/))
 - [x] Week 1: Foundations: control node, test VM, repo ([build log](docs/build-log/week-01.md))
-- [ ] Week 2: Ansible fundamentals
+- [x] Week 2: Ansible fundamentals: inventory, `ansible.cfg` and an idempotent bootstrap playbook ([build log](docs/build-log/week-02.md))
 - [ ] Week 3: Base host role (hardening)
 - [ ] Week 4: Secrets with Ansible Vault + Docker Engine
 - [ ] Week 5: Portainer, deployed by Ansible

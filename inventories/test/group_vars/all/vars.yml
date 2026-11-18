@@ -2,3 +2,7 @@
 ansible_python_interpreter: /usr/bin/python3
 
 base_timezone: America/New_York
+
+ansible_become_password: "{{ vault_ansible_become_password }}"
+
+docker_users: [test-homelab]

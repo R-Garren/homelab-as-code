@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# pre-commit: refuse the commit if any staged vault.yml is not encrypted with Ansible Vault.
+
+status=0
+
+while IFS= read -r file; do
+    first_line=$(git show ":$file" | head -n 1)
+    if [[ "$first_line" != '$ANSIBLE_VAULT'* ]]; then
+        echo "Error: $file is not encrypted. Run: ansible-vault encrypt $file" >&2
+        status=1
+    fi
+done < <(git diff --cached --name-only --diff-filter=ACM | grep -E '(^|/)vault\.yml$')
+
+exit $status

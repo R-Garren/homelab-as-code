@@ -54,7 +54,7 @@ The sshd values are quoted strings on purpose: unquoted, YAML reads `no` as `fal
 ## Notes
 
 - Removing an entry from `base_ufw_allowed` doesn't close the port: Ansible only adds UFW rules.
-- Docker-published ports on bridge networks bypass UFW. See the known gaps in the security baseline.
+- Ports that Docker publishes for containers bypass UFW. See [Docker bypasses UFW](../../docs/security-baseline.md#docker-bypasses-ufw) in the security baseline.
 
 ## License
 

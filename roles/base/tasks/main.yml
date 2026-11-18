@@ -7,7 +7,7 @@
   ansible.builtin.import_tasks: packages.yml
   tags: packages
 
-- name: Set system timezone
+- name: Configure system settings
   ansible.builtin.import_tasks: system.yml
   tags: system
 

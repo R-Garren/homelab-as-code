@@ -4,3 +4,9 @@
   become: true
   roles:
     - base
+
+- name: Apply docker role to homelab servers
+  hosts: homelab
+  become: true
+  roles:
+    - docker

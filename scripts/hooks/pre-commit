@@ -9,6 +9,6 @@ while IFS= read -r file; do
         echo "Error: $file is not encrypted. Run: ansible-vault encrypt $file" >&2
         status=1
     fi
-done < <(git diff --cached --name-only --diff-filter=ACM | grep -E '(^|/)vault\.yml$')
+done < <(git diff --cached --name-only --diff-filter=ACMR | grep -E '(^|/)vault\.yml$')
 
 exit $status

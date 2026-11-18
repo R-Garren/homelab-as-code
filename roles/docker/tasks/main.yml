@@ -9,7 +9,9 @@
 
 - name: Install packages needed to add Docker's repository
   ansible.builtin.apt:
-    name: ca-certificates
+    name:
+      - ca-certificates
+      - python3-debian
     state: present
     update_cache: true
 
@@ -44,6 +46,12 @@
     name: "{{ docker_packages }}"
     state: present
     update_cache: true
+
+- name: Make sure Docker is running and starts at boot
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
 
 - name: Install the Docker SDK for Python (needed by community.docker modules)
   ansible.builtin.apt:

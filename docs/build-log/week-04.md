@@ -76,15 +76,18 @@ Each step of [Docker's install guide for Ubuntu](https://docs.docker.com/engine/
 | Docker's docs | Task | Module |
 | --- | --- | --- |
 | Uninstall old versions | Remove unofficial Docker packages | `ansible.builtin.apt`, `state: absent` |
-| `apt install ca-certificates curl` | Install packages needed to add Docker's repository | `ansible.builtin.apt` |
+| `apt install ca-certificates curl` | Install packages needed to add Docker's repository (`ca-certificates`, `python3-debian`) | `ansible.builtin.apt` |
 | `install -m 0755 -d /etc/apt/keyrings` | Create the apt keyrings directory | `ansible.builtin.file` |
 | `curl … -o /etc/apt/keyrings/docker.asc` and `chmod a+r` | Download Docker's GPG key | `ansible.builtin.get_url`, mode `0644` |
 | `tee /etc/apt/sources.list.d/docker.sources` | Add Docker's apt repository | `ansible.builtin.deb822_repository` |
 | `apt update` then `apt install docker-ce …` | Install Docker Engine | `ansible.builtin.apt`, `update_cache: true` |
+| (the package starts Docker and enables it at boot) | Make sure Docker is running and starts at boot | `ansible.builtin.systemd`, `state: started`, `enabled: true` |
 
 Details that differ from a copy of the docs:
 
 - **No curl.** The docs need curl because they download the key in the shell. `get_url` downloads with Python on the server, so `ca-certificates` (to trust HTTPS) is enough.
+- **`python3-debian` is installed explicitly.** `deb822_repository` uses it to write the `.sources` file. Ubuntu Server 26.04 already ships it, so the role worked without it, but a role shouldn't depend on what the installer happened to include (the same reason `ufw` is listed in `base_packages`).
+- **The service is managed explicitly.** Docker's package starts the `docker` service and enables it at boot, so this task normally reports `ok`. It makes the role state that it expects Docker running, and fixes it if Docker was stopped. It comes before `daemon.json`, so Docker is running when the handler restarts it.
 - **deb822 format.** Docker's docs now write the repository as a `docker.sources` file instead of a one-line `.list` file. `deb822_repository` writes that format directly; each parameter is one line of the docs' file, and `name: docker` becomes `docker.sources`.
 - **The Ubuntu codename comes from a fact.** `suites: "{{ ansible_facts['distribution_release'] }}"` gives `resolute` on 26.04, the Ansible version of the docs' `$(. /etc/os-release && echo …)`. I used the `ansible_facts[...]` form rather than the old top-level `ansible_distribution_release`.
 - **No `Architectures` line.** apt defaults to the server's own architecture (`amd64`). `ansible_facts['architecture']` would give `x86_64`, which apt doesn't accept there.
@@ -101,7 +104,11 @@ Result: `Docker version 29.10.0` and `Docker Compose version v5.8.0`, both from 
 
 - `docker_users` in `defaults/main.yml` is `[]`, and `inventories/test/group_vars/all/vars.yml` sets it to `[test-homelab]`. A fact like `ansible_user_id` can't be used here: the play runs with `become: true`, so facts are gathered as root.
 - `ansible.builtin.user` loops over the list with `groups: docker` and **`append: true`**. Without `append`, Ansible would remove the user from every other group, including `sudo`.
-- `ansible.builtin.meta: reset_connection` follows it. Group membership only applies to new logins, and Ansible reuses its SSH connection. A `meta` task prints no `ok` or `changed` line.
+- `ansible.builtin.meta: reset_connection` follows it. A `meta` task prints no `ok` or `changed` line.
+
+**Why `reset_connection` is needed.** Linux gives a process its list of groups once, when the login starts: sshd reads `/etc/group` for the user, and every process started from that login inherits the list. Adding a user to a group changes `/etc/group`, but not processes that are already running. That's why a user normally has to log out and back in (or run `newgrp`) before a new group works. Ansible keeps its SSH connection open between tasks (SSH connection sharing), so without a reset, later tasks would run inside a login that started before the change. `reset_connection` closes it, so the next task logs in fresh and gets the `docker` group.
+
+In this role every task runs as root through `become`, and root doesn't need the group, so here the reset is a precaution. It matters for any later task that runs as `test-homelab` itself, without `become`. It's also why `ssh test-homelab 'docker run --rm hello-world'` worked straight after the run: each `ssh` command is a new login.
 
 Membership in the `docker` group is effectively root: anyone in it can start a container that mounts `/` from the host. Recorded as an accepted risk in the security baseline.
 
@@ -156,6 +163,12 @@ Prediction: UFW denies all incoming traffic except SSH, and in Week 3 `nc` to po
 5. **`'docker_packages' is undefined`.** `defaults/main.yml` said `docker_packeges`. The run stopped at the install task, after the key and repository tasks had already succeeded (`changed=2`). `docker_conflicting_packages` worked, which proved the defaults file was being read and pointed at a misspelled name, the same kind of mistake as Week 3's numbers 10 and 15.
 6. **`docker_users: "{{ docker_users | default([]) }}"` in `defaults/main.yml`.** Caught in review. Role defaults are the fallback when nothing else sets a variable, and this line defines the variable as itself, so without an override Ansible would stop with "recursive loop detected". The test inventory hid it because `vars.yml` wins. Defaults hold a plain value (`[]`); `| default()` is for tasks.
 7. **`sudo: A terminal is required to authenticate`.** `ssh test-homelab 'sudo docker …'` runs the command without a terminal, and sudo needs one to ask for the password. `ssh -t` forces one. It also showed that sudo still needs a password.
+8. **Three gaps found after the push**, by reviewing the commit against the guide. Fixed in a follow-up commit; the `week-04` tag stays on the original commit.
+    - The `pre-commit` hook used `--diff-filter=ACM`, so a plain-text file renamed or moved to `…/vault.yml` would have skipped the check. Now `ACMR`.
+    - No task made sure Docker was running and enabled. It worked only because Docker's package does both.
+    - `python3-debian`, which `deb822_repository` needs, wasn't installed by the role. It worked only because Ubuntu 26.04 ships it.
+
+   After the fix, both runs reported `changed=0` (the new task and the extra package were already in place) and `ansible-lint` stayed clean. To prove the service task does real work, I stopped Docker with `sudo systemctl stop docker docker.socket`: the next run reported `changed` on `Make sure Docker is running and starts at boot` and `changed=1` overall.
 
 ## Evidence
 
@@ -285,6 +298,8 @@ test-homelab : ok=23  changed=0   unreachable=0  failed=0  skipped=1  rescued=0 
 The `base` part matches Week 3's rebuild exactly (8 changes). On a fresh 26.04 install, `/etc/apt/keyrings` already exists and the Docker packages create `/etc/docker`, so both directory tasks report `ok`. The whole run needed no `-K`.
 
 - `ansible-lint playbooks/site.yml`: 0 failures, 0 warnings in 14 files, `production` profile.
+
+This rebuild ran before the follow-up fix added the service task. After the fix, a normal run is `ok=24 changed=0`.
 
 ## Notes for later weeks
 

@@ -16,11 +16,12 @@ All tasks are in `tasks/main.yml`, in this order:
 | Task | What it does |
 | --- | --- |
 | Remove unofficial Docker packages | Removes `docker_conflicting_packages`, Ubuntu's own Docker packages that clash with Docker's. |
-| Install packages needed to add Docker's repository | Installs `ca-certificates`, so the server can check Docker's HTTPS certificate. |
+| Install packages needed to add Docker's repository | Installs `ca-certificates`, so the server can check Docker's HTTPS certificate, and `python3-debian`, which the repository task needs. |
 | Create the apt keyrings directory | `/etc/apt/keyrings`, mode `0755`. |
 | Download Docker's GPG key | Saves it to `/etc/apt/keyrings/docker.asc`, mode `0644`. |
 | Add Docker's apt repository | Writes `/etc/apt/sources.list.d/docker.sources` (deb822 format), trusting only packages signed with that key. |
 | Install Docker Engine | Installs `docker_packages`, refreshing the apt cache first so the new repository is seen. |
+| Make sure Docker is running and starts at boot | Starts the `docker` service and enables it at boot. Docker's package normally does both, so this reports `ok` unless Docker was stopped. |
 | Install the Docker SDK for Python | Installs `python3-docker` from Ubuntu, needed by the `community.docker` modules. |
 | Add users to the docker group | Adds each user in `docker_users` to `docker` (`append: true`, so their other groups stay). |
 | Reset the SSH connection | Makes the new group membership apply to the rest of the play. |

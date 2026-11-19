@@ -1,8 +1,8 @@
 # Security baseline
 
-Every homelab server gets the same hardened starting point from two Ansible roles: `base` (`roles/base/`) hardens the operating system, and `docker` (`roles/docker/`) installs Docker Engine. This page lists each control, where it lives in the code, how to check it on a running server, and the Security+ concept it maps to.
+Every homelab server gets the same hardened starting point from three Ansible roles: `base` (`roles/base/`) hardens the operating system, `docker` (`roles/docker/`) installs Docker Engine, and `portainer` (`roles/portainer/`) runs Portainer CE. This page lists each control, where it lives in the code, how to check it on a running server, and the Security+ concept it maps to.
 
-**Applies to:** the test VM `test-homelab` today, and the production ThinkPad from Week 10. **Last verified:** 18 Nov 2026 ([Week 4 build log](build-log/week-04.md)).
+**Applies to:** the test VM `test-homelab` today, and the production ThinkPad from Week 10. **Last verified:** 18 Nov 2026 ([Week 5 build log](build-log/week-05.md)).
 
 ## Controls
 
@@ -22,6 +22,9 @@ Every homelab server gets the same hardened starting point from two Ansible role
 | An unencrypted vault file can't be committed | Git `pre-commit` hook (`scripts/hooks/pre-commit`) checks the staged copy of every `vault.yml` and refuses the commit if its first line isn't `$ANSIBLE_VAULT`. Turned on per clone with `git config core.hooksPath scripts/hooks`. | Stage a plain-text `vault.yml` and commit: refused with `<file> is not encrypted`. An encrypted one commits normally. | Preventive control; data loss prevention |
 | The vault password stays off the repo | Random 32-byte password (`openssl rand -base64 32`) in `~/.ansible/vault_pass.txt` on the control node, mode `600`. `ansible.cfg` points to it. A backup copy is in a password manager. `.gitignore` blocks `vault_pass*`. | `ls -l ~/.ansible/vault_pass.txt` shows `-rw-------`. `ansible-config dump --only-changed` shows `DEFAULT_VAULT_PASSWORD_FILE` outside the repo. | Key management; separation of key and data |
 | Docker comes from Docker's signed repository | Ubuntu's unofficial Docker packages are removed. Docker's GPG key is stored in `/etc/apt/keyrings/docker.asc`, and the repository (`docker.sources`) only trusts packages signed by that key (`Signed-By`). | `apt-cache policy docker-ce` shows `download.docker.com` as the source. `cat /etc/apt/sources.list.d/docker.sources` shows `Signed-By: /etc/apt/keyrings/docker.asc`. | Supply chain security; integrity |
+| Portainer runs a pinned, supported release | `portainer_version: "2.45.3"`, the current LTS release, in `roles/portainer/defaults/main.yml`. Never `latest`, so a rebuild runs the version that was tested. Upgrades are a deliberate change to that one variable. | `docker inspect --format '{{.Config.Image}}' portainer` shows `portainer/portainer-ce:2.45.3`. The Portainer footer shows `Community Edition 2.45.3 LTS`. | Patch management; change management; supply chain security |
+| Portainer publishes only the port it needs | Only the HTTPS UI is published (`9443`). Port `8000`, used by Edge agents, isn't published, and Edge Compute was left off during setup. Portainer's data is in the named volume `portainer_data`, not a host folder. | `sudo ss -tulpn` shows `docker-proxy` on 9443 and nothing on 8000. `docker ps` shows only `0.0.0.0:9443->9443/tcp` for `portainer`. | Attack surface reduction |
+| Portainer's admin account can't be claimed remotely | Built into Portainer 2.45: the first-run page needs a one-time setup token that Portainer prints only to its own log, and it locks the setup page after a few minutes. The admin password must be at least 12 characters and is kept in Bitwarden. | On a fresh install, `https://<host>:9443` asks for the setup token. `docker logs portainer 2>&1 \| grep -i token` on the server shows it. | Secure defaults; authentication |
 | Container logs can't fill the disk | `/etc/docker/daemon.json` sets the `json-file` driver with `max-size 10m` and `max-file 3`, so each container keeps at most 30 MB of logs. The file is checked with `dockerd --validate` before it's put in place. | `docker inspect --format '{{.HostConfig.LogConfig}}' <container>` shows `{json-file map[max-file:3 max-size:10m]}`. | Availability; resource exhaustion |
 | The server matches the code | Every setting above is applied by `site.yml`. Managed files carry an `Ansible managed` header (except `daemon.json`, because JSON has no comments). A second run reports `changed=0`, so any change means something drifted. | `ansible-playbook playbooks/site.yml --check --diff` reports `changed=0` and shows no diffs. | Configuration management; secure baseline |
 | Changes are tested before production | Every change runs on the test VM first, with VirtualBox snapshots as rollback points, and is rebuilt from the `01-fresh-install` snapshot before release. | Restore `01-fresh-install`, run `site.yml`, and the result matches a long-running server. | Change management |
@@ -46,7 +49,11 @@ Every homelab server gets the same hardened starting point from two Ansible role
 | Must be reachable from the LAN (Portainer in Week 5, Nginx Proxy Manager 80/443 in Week 7) | Publish deliberately and list it in the table below. UFW does **not** protect it. If it must be limited by source address, the rule goes in the `DOCKER-USER` chain, which Docker never changes and checks first. | Docker's iptables rules (UFW is bypassed) |
 | Container on the host network (Pi-hole) | Behaves like a normal host service. | UFW, through `base_ufw_allowed` |
 
-**Ports published to the LAN:** none yet.
+**Ports published to the LAN:**
+
+| Port | Container | Published as | Why it's LAN-facing | Source filter | Until |
+| --- | --- | --- | --- | --- | --- |
+| `9443/tcp` | `portainer` (HTTPS UI) | `0.0.0.0:9443->9443/tcp` | The admin UI has to be reached from the desktop, and there's no reverse proxy yet. | None. No `DOCKER-USER` rule; decided 18 Nov 2026. | Week 7, when Nginx Proxy Manager fronts Portainer over a shared Docker network and 9443 is no longer published. |
 
 **How to check:** `docker ps` shows each container's published address in the PORTS column (`127.0.0.1:8080->80/tcp` is local only; `0.0.0.0:8080->80/tcp` is open to the LAN). `sudo iptables -t nat -S DOCKER` lists every DNAT rule.
 
@@ -62,11 +69,16 @@ Every homelab server gets the same hardened starting point from two Ansible role
 | Vault password rotation documented, not yet run | The password is random and has never left the control node and the password manager. | Rotate it if it may have leaked, a device holding it is lost, or someone who knew it no longer should. Steps in [ADR 0002](adr/0002-secrets-with-ansible-vault.md). |
 | The admin user is in the `docker` group | Day-to-day `docker` commands work without `sudo`. | Members of the `docker` group are effectively root: they can start a container that mounts `/` from the host. Only the admin user is in `docker_users`. |
 | Automatic reboots on, at 04:00 | A kernel or library fix doesn't protect the server until it reboots. Upgrades run between about 06:00 and 07:00, so the reboot lands at 04:00 the next morning, when nobody is using the network. | From Week 10 this server is the home's only DNS and DHCP server: a reboot is a short outage, and a failed boot is a full one. Fallback: the Pi-hole-down runbook (turn DHCP back on at the BGW320). A fix that needs a reboot can wait up to about a day. |
+| Portainer mounts the Docker socket (`/var/run/docker.sock`) | Portainer manages Docker through the socket; without it there's nothing to manage. | Anyone who is a Portainer admin, or who exploits a Portainer vulnerability, is effectively root on the host: they can start a privileged container that mounts `/`. Limits: a strong admin password, a pinned and patched LTS release, and the UI reachable only from the LAN. Mounting the socket read-only (`:ro`) wouldn't help, because it doesn't stop API calls through the socket. |
+| Port 9443 published to the LAN without a source filter | It's needed until Week 7, and the home network is one flat subnet, so a filter would only exclude the few devices that aren't the desktop. A `DOCKER-USER` rule would also need a DHCP reservation for the desktop. | Any device on the LAN can reach Portainer's login page. Temporary: listed in [Ports published to the LAN](#docker-bypasses-ufw) and removed in Week 7. |
+| Self-signed certificate on Portainer until Week 7 | Portainer generates it on first start. A private CA comes in Week 7. | The browser can't tell Portainer's certificate from an attacker's on the LAN, and clicking through the warning becomes a habit. Limited to the LAN; Week 7 replaces it with a certificate signed by the private CA. |
+| Stay on Portainer CE, frozen on the 2.45 LTS line | Portainer announced in September 2026 that there will be no CE build of 3.x; 2.45 LTS still gets security and bug fixes. See [ADR 0003](adr/0003-ansible-owns-host-portainer-owns-apps.md). | If CE fixes stop, Portainer becomes unpatched software with root-level access. The stacks are plain Compose files in Git, so they can move to another manager without rewriting the apps. |
 | Only the security pocket updates automatically | That's Ubuntu's default: security fixes are small and targeted. | Non-security updates wait for the next `site.yml` run, whose upgrade task applies everything. |
 
 ## Known gaps
 
-- **LAN-facing container ports aren't filtered by source.** From Week 5, any port published to the LAN is open to every device on it, because UFW doesn't apply. `DOCKER-USER` rules can close this if needed; decided per port in Weeks 5–7.
+- **LAN-facing container ports aren't filtered by source.** Port 9443 (Portainer) is open to every device on the LAN until Week 7, because UFW doesn't apply. `DOCKER-USER` rules can close this if needed; decided per port.
+- **The Portainer admin password isn't managed by Ansible yet.** It was set by hand on first login and lives only in Bitwarden. Week 8 creates the admin through Portainer's API with the password from Ansible Vault.
 - **The `pre-commit` hook only protects clones where it's turned on.** `core.hooksPath` is a local setting, so a fresh clone has no hook until `git config core.hooksPath scripts/hooks` is run. GitHub push protection is the second layer.
 - **Removing a port from `base_ufw_allowed` doesn't close it.** Ansible only adds UFW rules; closing one needs a task with `delete: true`.
 - **SSH is reachable from the whole LAN.** No source restriction yet, and the home network is one flat subnet until the VLAN segmentation lab in Week 11.
@@ -76,7 +88,8 @@ Every homelab server gets the same hardened starting point from two Ansible role
 
 | Week | Control |
 | --- | --- |
-| 7 | HTTPS for local services, signed by a private CA |
+| 7 | HTTPS for local services, signed by a private CA; Portainer reached only through Nginx Proxy Manager, with 9443 no longer published |
+| 8 | Portainer admin account and Git stacks created by Ansible through Portainer's API, with secrets from Vault |
 | 9 | Backups, CI checks (`ansible-lint` on every push) and a disaster-recovery drill |
 | 11 | VLAN segmentation with default deny between zones; Suricata IDS (OPNsense lab) |
 | 12 | WireGuard for remote access, the only port open to the internet |

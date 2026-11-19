@@ -1,0 +1,14 @@
+---
+# Pinned Portainer CE LTS release. Check https://github.com/portainer/portainer/releases before bumping.
+portainer_version: "2.45.3"
+portainer_image: "portainer/portainer-ce:{{ portainer_version }}"
+
+portainer_container_name: portainer
+
+# Name volume mounted at /data: Portainer's database, settings, and cerfificate.
+portainer_volume_name: portainer_data
+
+# Host port for the HTTPS UI.
+portainer_https_port: 9443
+
+portainer_restart_policy: unless-stopped

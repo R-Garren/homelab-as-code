@@ -12,6 +12,8 @@ services:
       - "127.0.0.1:5335:53/udp"
     volumes:
       - /opt/homelab/unbound/pi-hole.conf:/etc/unbound/custom.conf.d/pi-hole.conf:ro
+    labels:
+      homelab.deployed-by: "portainer-gitops"
     restart: unless-stopped
 
   pihole:

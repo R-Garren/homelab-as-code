@@ -6,3 +6,6 @@ base_timezone: America/New_York
 ansible_become_password: "{{ vault_ansible_become_password }}"
 
 docker_users: [test-homelab]
+
+# DHCP must never be true on the test VM
+dns_host_dhcp_active: false

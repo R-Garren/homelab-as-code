@@ -6,3 +6,4 @@
     - base
     - docker
     - portainer
+    - dns_host

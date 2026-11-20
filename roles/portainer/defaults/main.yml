@@ -5,7 +5,7 @@ portainer_image: "portainer/portainer-ce:{{ portainer_version }}"
 
 portainer_container_name: portainer
 
-# Name volume mounted at /data: Portainer's database, settings, and cerfificate.
+# Named volume mounted at /data: Portainer's database, settings, and certificate.
 portainer_volume_name: portainer_data
 
 # Host port for the HTTPS UI.

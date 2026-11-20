@@ -1,0 +1,10 @@
+---
+# Where stack config files live on the host
+dns_host_config_root: /opt/homelab
+dns_host_web_port: "8081"
+dns_host_dhcp_active: false
+
+dns_host_ufw_allowed:
+  - { port: "53", proto: tcp, comment: "Pi-hole DNS" }
+  - { port: "53", proto: udp, comment: "Pi-hole DNS" }
+  - { port: "{{ dns_host_web_port }}", proto: tcp, comment: "Pi-hole Web UI" }

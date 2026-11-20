@@ -1,0 +1,56 @@
+---
+- name: Make sure the resolved drop-in folder exists
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Turn off the systemd-resolved stub listener
+  ansible.builtin.template:
+    src: 10-no-stub.conf.j2
+    dest: /etc/systemd/resolved.conf.d/10-no-stub.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart systemd-resolved
+
+- name: Point /etc/resolv.conf at the real upstream servers
+  ansible.builtin.file:
+    src: /run/systemd/resolve/resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: true
+
+- name: Create the Unbound config folder
+  ansible.builtin.file:
+    path: "{{ dns_host_config_root }}/unbound"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Template the Unbound override file
+  ansible.builtin.template:
+    src: pi-hole.conf.j2
+    dest: "{{ dns_host_config_root }}/unbound/pi-hole.conf"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Allow Pi-hole ports through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ dns_host_ufw_allowed }}"
+
+- name: Allow DHCP (67/udp) only when Pi-hole DHCP is active
+  community.general.ufw:
+    rule: allow
+    port: "67"
+    proto: udp
+    comment: "Pi-hole DHCP"
+    delete: "{{ not dns_host_dhcp_active }}"

@@ -1,0 +1,60 @@
+# {{ ansible_managed }}
+# Based on Pi-hole's Unbound guide (docs.pi-hole.net/guides/dns/unbound).
+# interface, port and root-hints are left to the klutchell/unbound image
+# defaults (0.0.0.0:53 inside the container, bundled root hints and trust anchor).
+# Loaded by the image's main config through include-toplevel.
+server:
+    # Who may query: the container itself and Docker networks (172.16.0.0-172.31.255.255).
+    # Pi-hole's queries arrive from the stack network's gateway, not from the host's 127.0.0.1.
+    access-control: 127.0.0.0/8 allow
+    access-control: 172.16.0.0/12 allow
+
+    verbosity: 0
+
+    do-ip4: yes
+    do-udp: yes
+    do-tcp: yes
+
+    # No IPv6 inside the Docker network or on the LAN uplink
+    do-ip6: no
+
+    # Leave at no unless you have native IPv6
+    prefer-ip6: no
+
+    # Trust glue only if it is within the server's authority
+    harden-glue: yes
+
+    # Require DNSSEC data for trust-anchored zones; if it is missing, the zone is BOGUS
+    harden-dnssec-stripped: yes
+
+    # Capitalisation randomisation is known to cause DNSSEC issues sometimes
+    use-caps-for-id: no
+
+    # Keep UDP replies small enough to avoid IP fragmentation (DNS Flag Day 2020);
+    # bigger answers fall back to TCP
+    edns-buffer-size: 1232
+
+    # Refresh frequently queried cache entries before they expire
+    prefetch: yes
+
+    # One thread is plenty for a home network
+    num-threads: 1
+
+    # Larger kernel receive buffer for traffic spikes.
+    # Expect a "not granted" warning in docker logs: the host's net.core.rmem_max is lower.
+    so-rcvbuf: 1m
+
+    # Ensure privacy of local IP ranges
+    private-address: 192.168.0.0/16
+    private-address: 169.254.0.0/16
+    private-address: 172.16.0.0/12
+    private-address: 10.0.0.0/8
+    private-address: fd00::/8
+    private-address: fe80::/10
+
+    # Ensure no reverse queries to non-public IP ranges (RFC 6303 4.2)
+    private-address: 192.0.2.0/24
+    private-address: 198.51.100.0/24
+    private-address: 203.0.113.0/24
+    private-address: 255.255.255.255/32
+    private-address: 2001:db8::/32

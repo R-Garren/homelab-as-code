@@ -1,0 +1,39 @@
+---
+# DNS stack: Pi-hole + Unbound
+# Deployed by Portainer as a Git-repository stack.
+# Host prep is done by the Ansible role dns_host
+
+services:
+  unbound:
+    image: klutchell/unbound:1.26.2@sha256:de8e624f84337bdb2d16540c0b203d5df2a981180421cb50ab4212b67542d8b4
+    container_name: unbound
+    ports:
+      - "127.0.0.1:5335:53/tcp"
+      - "127.0.0.1:5335:53/udp"
+    volumes:
+      - /opt/homelab/unbound/pi-hole.conf:/etc/unbound/custom.conf.d/pi-hole.conf:ro
+    restart: unless-stopped
+
+  pihole:
+    image: pihole/pihole:2026.11.0
+    container_name: pihole
+    network_mode: host
+    depends_on:
+      - unbound
+    cap_add:
+      - NET_ADMIN
+    environment:
+      TZ: "America/New_York"
+      FTLCONF_webserver_api_password: "${PIHOLE_PASSWORD}"
+      FTLCONF_webserver_port: "8081"
+      FTLCONF_dns_upstreams: "127.0.0.1#5335"
+      FTLCONF_dhcp_active: "${PIHOLE_DHCP_ACTIVE:-false}"
+      FTLCONF_ntp_ipv4_active: "false"
+      FTLCONF_ntp_ipv6_active: "false"
+      FTLCONF_ntp_sync_active: "false"
+    volumes:
+      - pihole_data:/etc/pihole
+    restart: unless-stopped
+
+volumes:
+  pihole_data:

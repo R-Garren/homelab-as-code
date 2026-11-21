@@ -8,9 +8,6 @@ portainer_container_name: portainer
 # Named volume mounted at /data: Portainer's database, settings, and certificate.
 portainer_volume_name: portainer_data
 
-# Host port for the HTTPS UI.
-portainer_https_port: 9443
-
 portainer_restart_policy: unless-stopped
 
 # Docker network shared with NPM. The docker role creates it,

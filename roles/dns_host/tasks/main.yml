@@ -46,6 +46,7 @@
     port: "{{ item.port }}"
     proto: "{{ item.proto }}"
     comment: "{{ item.comment }}"
+    delete: "{{ item.delete | default(false) }}"
   loop: "{{ dns_host_ufw_allowed }}"
 
 - name: Allow DHCP (67/udp) only when Pi-hole DHCP is active

@@ -2,7 +2,7 @@
 
 My home lab, built from scratch with Ansible and Docker: hardened, tested on a VM first, and rebuildable with one command.
 
-**Status:** Week 6 of 12. A `base` role hardens SSH (keys only, no root login), turns on a deny-by-default UFW firewall, installs security updates automatically and sets the hostname and timezone. A `docker` role installs Docker Engine from Docker's signed repository with container log rotation. A `portainer` role runs Portainer CE 2.45.3 LTS from a pinned image. A `dns_host` role frees port 53, places Unbound's config and opens Pi-hole's firewall ports. Portainer deploys the first app stack, Pi-hole + Unbound with DNSSEC validation, straight from this repo and redeploys it when `main` changes. Secrets are encrypted with Ansible Vault.
+**Status:** Week 7 of 12. A `base` role hardens SSH (keys only, no root login), turns on a deny-by-default UFW firewall, installs security updates automatically and sets the hostname and timezone. A `docker` role installs Docker Engine from Docker's signed repository with container log rotation, and creates the network the reverse proxy shares with the services behind it. A `portainer` role runs Portainer CE 2.45.3 LTS from a pinned image, with no published ports. A `dns_host` role frees port 53, places Unbound's config and opens Pi-hole's firewall ports. Portainer deploys two app stacks straight from this repo and redeploys them when `main` changes: Pi-hole + Unbound with DNSSEC validation, and Nginx Proxy Manager. The admin UIs are reached only through NPM, at `https://<name>.home.arpa`, with certificates from a private CA built by `playbooks/pki.yml`. Secrets are encrypted with Ansible Vault.
 
 ## What this will build
 
@@ -17,7 +17,7 @@ One Ubuntu Server 26.04 LTS host (a ThinkPad 11e) running:
 
 Ansible owns the host: packages, SSH, firewall, Docker and Portainer itself. Portainer owns the apps, deployed as Git-repository stacks from `stacks/`, so it has full control over them ([ADR 0003](docs/adr/0003-ansible-owns-host-portainer-owns-apps.md)). Every change runs on a VirtualBox test VM before it touches production.
 
-Pinned image versions: Portainer CE `2.45.3` (LTS), Pi-hole `2026.11.0`, Unbound `1.26.2` (`klutchell/unbound`, also pinned by digest; see [ADR 0004](docs/adr/0004-unbound-image.md)).
+Pinned image versions: Portainer CE `2.45.3` (LTS), Pi-hole `2026.11.0`, Unbound `1.26.2` (`klutchell/unbound`, also pinned by digest; see [ADR 0004](docs/adr/0004-unbound-image.md)), Nginx Proxy Manager `2.17.0` (also pinned by digest).
 
 ## Run it
 
@@ -35,7 +35,7 @@ ansible-playbook playbooks/site.yml
 
 Hosts and variables live in `inventories/test/`. Each role's settings and their defaults are in [`roles/base/`](roles/base/README.md), [`roles/docker/`](roles/docker/README.md), [`roles/portainer/`](roles/portainer/README.md) and [`roles/dns_host/`](roles/dns_host/README.md). `playbooks/site.yml` is one play that applies all four roles in that order.
 
-After the first run, open `https://<host>:9443` straight away and create the Portainer admin account. Portainer asks for a one-time setup token from its log (`docker logs portainer 2>&1 | grep -i token` on the server) and locks the setup page after a few minutes.
+After the first run, create the Portainer admin account straight away. Portainer publishes no ports, so reach it through an SSH tunnel to its container address (steps in the [`portainer` role's README](roles/portainer/README.md#notes)), then open `https://localhost:9443`. Portainer asks for a one-time setup token from its log (`docker logs portainer 2>&1 | grep -i token` on the server) and locks the setup page after a few minutes.
 
 Run one part of the `base` role with tags: `updates`, `packages`, `system`, `ssh` or `firewall`. For example, `ansible-playbook playbooks/site.yml --tags firewall`. Preview any run with `--check --diff`.
 
@@ -45,9 +45,24 @@ Until Week 8 automates it, the stack is added in Portainer by hand, after `site.
 
 1. **Sources → Add new:** this repo's URL, no authentication (it's public), polling on (`5m`).
 2. **Stacks → Add stack → Repository:** name `dns`, that source, reference `refs/heads/main`, compose path `stacks/dns/compose.yaml`.
-3. Add the environment variable `PIHOLE_PASSWORD` (the Pi-hole web UI password). Leave `PIHOLE_DHCP_ACTIVE` unset except in production: DHCP stays off unless it's `true`.
+3. Add the environment variables `PIHOLE_PASSWORD` (the Pi-hole web UI password) and `HOMELAB_IP` (the server's LAN address, used for the `home.arpa` records; the deploy fails if it's missing). Leave `PIHOLE_DHCP_ACTIVE` unset except in production: DHCP stays off unless it's `true`.
 
-Pi-hole's web UI is then at `http://<host>:8081/admin`. After that, a push to `main` that changes `stacks/dns/compose.yaml` is redeployed by Portainer on its next poll.
+After that, a push to `main` that changes `stacks/dns/compose.yaml` is redeployed by Portainer on its next poll. Pi-hole answers `npm.home.arpa`, `pihole.home.arpa` and `portainer.home.arpa` with `HOMELAB_IP`.
+
+### Set up HTTPS (private CA + Nginx Proxy Manager)
+
+1. **Build the CA and the server certificate** on the control node: `ansible-playbook playbooks/pki.yml`. Keys go to `~/.homelab-pki/`, outside the repo; the CA key's passphrase comes from the encrypted `playbooks/vars/pki/vault.yml` ([ADR 0005](docs/adr/0005-private-ca.md)). Import `ca.crt` into each device that should trust the sites.
+2. **Deploy the proxy stack** in Portainer: Stacks → Add stack → Repository, name `proxy`, compose path `stacks/proxy/compose.yaml`, no environment variables.
+3. **Open NPM's admin UI** through a tunnel (`ssh -N -L 8181:127.0.0.1:81 <host>`, then `http://localhost:8181`) and create the admin account.
+4. **Upload the certificate** (Certificates → Custom: `server.key` and `server.crt`) and add the proxy hosts below, each with that certificate, Force SSL and HTTP/2 on:
+
+   | Name | Forward to |
+   | --- | --- |
+   | `npm.home.arpa` | `http://127.0.0.1:81` |
+   | `pihole.home.arpa` | `http://172.20.0.1:8081` (`docker_proxy_gateway`) |
+   | `portainer.home.arpa` | `https://portainer:9443`, websockets on |
+
+NPM's proxy hosts live in its own database, not in this repo; that gap is explained in ADR 0005.
 
 ## Security
 
@@ -55,8 +70,9 @@ Pi-hole's web UI is then at `http://<host>:8081/admin`. After that, a push to `m
 
 - Secrets are encrypted with Ansible Vault; the vault password file stays outside the repo, and a `pre-commit` hook refuses unencrypted vault files ([ADR 0002](docs/adr/0002-secrets-with-ansible-vault.md)).
 - Ports Docker publishes for containers bypass UFW, so containers publish on `127.0.0.1` unless a port is meant for the LAN and listed in the baseline ([details](docs/security-baseline.md#docker-bypasses-ufw)).
-- Portainer mounts the Docker socket, so its admin account is effectively root on the host. Its UI on port 9443 is the only port Docker publishes to the LAN, until Nginx Proxy Manager fronts it in Week 7.
-- Unbound listens on `127.0.0.1` only and validates DNSSEC; Pi-hole uses it as its only upstream. Pi-hole runs on the host network, so UFW covers its ports (DNS and the web UI), and DHCP stays off unless a variable turns it on.
+- Portainer mounts the Docker socket, so its admin account is effectively root on the host. It publishes no ports; it's reached only through Nginx Proxy Manager, whose 80 and 443 are the only ports Docker publishes to the LAN.
+- HTTPS for every admin UI uses certificates from a private CA. Its key is passphrase-encrypted, kept outside Git, and can only sign names under `home.arpa` ([ADR 0005](docs/adr/0005-private-ca.md)).
+- Unbound listens on `127.0.0.1` only and validates DNSSEC; Pi-hole uses it as its only upstream. Pi-hole runs on the host network, so UFW covers its ports: DNS for the LAN, and the web UI only from the proxy network. DHCP stays off unless a variable turns it on.
 - GitHub secret scanning and push protection are on.
 - Private notes, the device inventory and Pi-hole backups never enter the repo (see `.gitignore`).
 - Known limitation: the home network is one flat subnet until the segmentation lab in Week 11.
@@ -77,7 +93,7 @@ Pi-hole's web UI is then at `http://<host>:8081/admin`. After that, a push to `m
 - [x] Week 4: Secrets with Ansible Vault + Docker Engine ([build log](docs/build-log/week-04.md), [ADR 0002](docs/adr/0002-secrets-with-ansible-vault.md))
 - [x] Week 5: Portainer, deployed by Ansible ([build log](docs/build-log/week-05.md), [ADR 0003](docs/adr/0003-ansible-owns-host-portainer-owns-apps.md))
 - [x] Week 6: DNS stack: Pi-hole + Unbound deployed from Git by Portainer, DNSSEC validated ([build log](docs/build-log/week-06.md), [ADR 0004](docs/adr/0004-unbound-image.md))
-- [ ] Week 7: Nginx Proxy Manager, local names and HTTPS
+- [x] Week 7: Nginx Proxy Manager, local names and HTTPS from a private CA ([build log](docs/build-log/week-07.md), [ADR 0005](docs/adr/0005-private-ca.md))
 - [ ] Week 8: Automate Portainer through its API
 - [ ] Week 9: Backups, CI and a disaster-recovery drill
 - [ ] Week 10: Production cutover (v2.0.0)

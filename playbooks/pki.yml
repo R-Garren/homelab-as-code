@@ -1,0 +1,98 @@
+---
+# Private CA for *.home.arpa. Runs on the control node (WSL), never on a server.
+# Keys live in ~/.homelab-pki (outside Git). The CA key is passphrase-encrypted;
+# the passphrase is in playbooks/vars/pki/vault.yml and Bitwarden. See ADR 0005.
+- name: Build the homelab private CA and server certificate
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vars/pki/vault.yml
+  vars:
+    # The inventory sets /usr/bin/python3 for every host (implicit localhost
+    # inherits group_vars/all); the crypto modules need the cryptography
+    # library, which Ansible's own Python (pipx) always has.
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    pki_dir: "{{ lookup('ansible.builtin.env', 'HOME') }}/.homelab-pki"
+    pki_ca_name: "Homelab Root CA"     # ← just a label shown in certmgr/browser
+    pki_server_names:                  # ← one per service NPM will front
+      - npm.home.arpa
+      - pihole.home.arpa
+      - portainer.home.arpa
+
+  tasks:
+    - name: Create the PKI folder
+      ansible.builtin.file:
+        path: "{{ pki_dir }}"
+        state: directory
+        mode: "0700"            # ← rwx for you, nothing for anyone else
+
+    # --- Root CA ---
+    - name: Create the CA private key (passphrase-protected)
+      community.crypto.openssl_privatekey:
+        path: "{{ pki_dir }}/ca.key"
+        type: ECC               # ← smaller, faster keys than RSA
+        curve: secp384r1        # ← stronger curve for the long-lived CA
+        passphrase: "{{ vault_pki_ca_passphrase }}"
+        cipher: auto
+        format: pkcs8
+        mode: "0600"            # ← rw for you only
+
+    - name: Create the CA signing request
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ pki_dir }}/ca.key"
+        privatekey_passphrase: "{{ vault_pki_ca_passphrase }}"
+        common_name: "{{ pki_ca_name }}"
+        use_common_name_for_san: false
+        basic_constraints:
+          - "CA:TRUE"
+          - "pathlen:0"          # can sign servers, not other CAs
+        basic_constraints_critical: true
+        key_usage:
+          - keyCertSign
+          - cRLSign
+        key_usage_critical: true
+        name_constraints_permitted:
+          - "DNS:home.arpa"      # ← covers home.arpa and everything under it
+        name_constraints_critical: true
+      register: ca_csr
+
+    - name: Self-sign the CA certificate
+      community.crypto.x509_certificate:
+        path: "{{ pki_dir }}/ca.crt"
+        csr_content: "{{ ca_csr.csr }}"
+        privatekey_path: "{{ pki_dir }}/ca.key"
+        privatekey_passphrase: "{{ vault_pki_ca_passphrase }}"
+        provider: selfsigned
+        selfsigned_not_after: "+3650d"   # ← 10 years
+        mode: "0644"             # public: this is the file you import into Windows
+
+    # --- Server certificate for NPM ---
+    - name: Create the server private key
+      community.crypto.openssl_privatekey:
+        path: "{{ pki_dir }}/server.key"
+        type: ECC               # ←
+        curve: secp256r1        # ← the standard curve for web servers
+        mode: "0600"             # no passphrase: NPM must read it
+
+    - name: Create the server signing request
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ pki_dir }}/server.key"
+        common_name: "{{ pki_server_names[0] }}"
+        subject_alt_name: "{{ pki_server_names | map('regex_replace', '^', 'DNS:') | list }}"  # ←
+        basic_constraints:
+          - "CA:FALSE"
+        extended_key_usage:
+          - serverAuth           # ← "TLS web server authentication"
+      register: server_csr
+
+    - name: Sign the server certificate with the CA
+      community.crypto.x509_certificate:
+        path: "{{ pki_dir }}/server.crt"
+        csr_content: "{{ server_csr.csr }}"
+        provider: ownca
+        ownca_path: "{{ pki_dir }}/ca.crt"
+        ownca_privatekey_path: "{{ pki_dir }}/ca.key"
+        ownca_privatekey_passphrase: "{{ vault_pki_ca_passphrase }}"
+        ownca_not_after: "+397d"         # ← the maximum browsers accept
+        mode: "0644"

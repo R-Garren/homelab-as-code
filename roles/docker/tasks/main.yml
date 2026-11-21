@@ -92,4 +92,5 @@
     driver: bridge
     ipam_config:
       - subnet: "{{ docker_proxy_subnet }}"
+        gateway: "{{ docker_proxy_gateway }}"
     state: present

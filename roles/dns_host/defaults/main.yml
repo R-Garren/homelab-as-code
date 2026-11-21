@@ -4,12 +4,14 @@ dns_host_config_root: /opt/homelab
 dns_host_web_port: "8081"
 dns_host_dhcp_active: false
 
-# Docker network NPM reacher pi-hole from.
+# Docker network NPM reaches Pi-hole from.
 # Must match docker_proxy_subnet in the docker role.
 dns_host_proxy_subnet: "172.20.0.0/24"
 
 dns_host_ufw_allowed:
   - { port: "53", proto: tcp, comment: "Pi-hole DNS" }
   - { port: "53", proto: udp, comment: "Pi-hole DNS" }
-  - { port: "{{ dns_host_web_port }}", proto: tcp, comment: "Pi-hole Web UI" }
-  - { port: "{{ dns_host_web_port }}", proto: tcp, from_ip: "{{ dns_host_proxy_subnet }}", comment: "Pi-hole Web UI from NPM"}
+  # Open to the whole LAN until week 7. NPM fronts Pi-hole now, so the rule is deleted.
+  # The item stays in the list, because removing it wouldn't remove the UFW rule.
+  - { port: "{{ dns_host_web_port }}", proto: tcp, delete: true, comment: "Pi-hole Web UI" }
+  - { port: "{{ dns_host_web_port }}", proto: tcp, from_ip: "{{ dns_host_proxy_subnet }}", comment: "Pi-hole Web UI from NPM" }

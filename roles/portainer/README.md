@@ -16,9 +16,11 @@ All tasks are in `tasks/main.yml`, in this order:
 | Task | What it does |
 | --- | --- |
 | Create the Portainer data volume | Creates the named volume `portainer_volume_name`. Docker keeps it under `/var/lib/docker/volumes/`, and it survives the container being removed or recreated. |
-| Run the Portainer container | Pulls `portainer_image` if it's missing and runs it as `portainer_container_name`. Publishes only the HTTPS UI, mounts the Docker socket and the data volume at `/data`, and sets the restart policy. If any of these settings change, the module recreates the container; the data volume is kept. |
+| Run the Portainer container | Pulls `portainer_image` if it's missing and runs it as `portainer_container_name` on the `portainer_network` network. Publishes **no** ports, mounts the Docker socket and the data volume at `/data`, and sets the restart policy. If any of these settings change, the module recreates the container; the data volume is kept. |
 
 The role has no handlers: `community.docker.docker_container` recreates the container itself when its configuration changes.
+
+**No published ports.** Nginx Proxy Manager reaches Portainer as `portainer:9443` over the shared network, and the browser uses `https://portainer.home.arpa`. The task sets `published_ports: []` together with `comparisons: { published_ports: strict }`. The empty list alone isn't enough: by default the module only checks that the ports you list are published, and an empty list always passes, so a container that still published 9443 was reported `ok`.
 
 ## Variables
 
@@ -30,8 +32,8 @@ All are in `defaults/main.yml` and can be overridden from `group_vars` or `host_
 | `portainer_image` | `"portainer/portainer-ce:{{ portainer_version }}"` | Full image reference. |
 | `portainer_container_name` | `portainer` | Container name. |
 | `portainer_volume_name` | `portainer_data` | Named volume mounted at `/data`. |
-| `portainer_https_port` | `9443` | Host port for the HTTPS UI. |
 | `portainer_restart_policy` | `unless-stopped` | Docker restart policy. The container comes back after a crash or reboot, but stays down if you stopped it by hand. |
+| `portainer_network` | `proxy` | Docker network shared with Nginx Proxy Manager. Created by the `docker` role, so it must match `docker_proxy_network`. |
 
 ## Example
 
@@ -48,9 +50,8 @@ All are in `defaults/main.yml` and can be overridden from `group_vars` or `host_
 ## Notes
 
 - **The Docker socket gives Portainer root-level control of the host.** Anyone who logs in to Portainer as an admin can start a privileged container and own the server. A strong admin password is the main control.
-- **Port 9443 is reachable from the whole LAN.** Published ports bypass UFW (see [Docker bypasses UFW](../../docs/security-baseline.md#docker-bypasses-ufw)). This is deliberate and temporary: Week 7 puts Nginx Proxy Manager in front of Portainer over a shared Docker network.
-- **Create the admin account right after the first start.** Portainer locks its setup page after a few minutes for security. If you miss it, run `docker restart portainer` and try again.
-- The UI uses a self-signed certificate until Week 7, so the browser shows a warning.
+- **Nothing reaches Portainer directly from the LAN.** It's reached only through Nginx Proxy Manager, with a certificate from the private CA ([ADR 0005](../../docs/adr/0005-private-ca.md)). Behind NPM, Portainer still uses its own self-signed certificate; NPM doesn't check it, and the hop never leaves the server.
+- **Create the admin account right after the first start, through an SSH tunnel.** On a fresh server there's no published port and NPM isn't set up yet. On the server, `docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' portainer` prints Portainer's address on the `proxy` network (for example `172.20.0.2`). From the control node, `ssh -N -L 9443:172.20.0.2:9443 <host>` forwards it, and `https://localhost:9443` opens the setup page. The container name doesn't work in the tunnel, because only Docker's own DNS knows it. Portainer asks for the one-time setup token from its log and locks the setup page after a few minutes; if you miss it, run `docker restart portainer` and try again.
 - Portainer CE stays on the 2.45 LTS line: Portainer announced in September 2026 that there will be no CE build of 3.x. 2.45 still gets security and bug fixes.
 
 ## License

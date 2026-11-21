@@ -28,3 +28,4 @@ docker_log_max_file: "3"
 # Shared network for containers that sit behind Nginx Proxy Manager
 docker_proxy_network: proxy
 docker_proxy_subnet: "172.20.0.0/24"
+docker_proxy_gateway: "172.20.0.1"

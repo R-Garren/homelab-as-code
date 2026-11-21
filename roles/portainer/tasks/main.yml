@@ -4,14 +4,18 @@
     name: "{{ portainer_volume_name }}"
     state: present
 
+# No published ports: NPM reaches Portainer as portainer:9443 over the proxy network.
+# An empty list alone is not enough: by default docker_container only checks that the
+# listed ports exist, so 'strict' makes it remove the old 9443.
 - name: Run the Portainer container
   community.docker.docker_container:
     name: "{{ portainer_container_name }}"
     image: "{{ portainer_image }}"
     state: started
     restart_policy: "{{ portainer_restart_policy }}"
-    published_ports:
-      - "{{ portainer_https_port }}:9443"
+    published_ports: []
+    comparisons:
+      published_ports: strict
     volumes:
       - "{{ portainer_volume_name }}:/data"
       - "/var/run/docker.sock:/var/run/docker.sock"

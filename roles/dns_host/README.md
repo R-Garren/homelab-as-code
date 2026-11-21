@@ -20,7 +20,7 @@ All tasks are in `tasks/main.yml`, in this order:
 | Point /etc/resolv.conf at the real upstream servers | Replaces the symlink to `stub-resolv.conf` (which lists only the stub at `127.0.0.53`) with a symlink to `/run/systemd/resolve/resolv.conf`, the servers learned from DHCP or netplan. |
 | Create the Unbound config folder | `{{ dns_host_config_root }}/unbound`, mode `0755`. |
 | Template the Unbound override file | Writes `pi-hole.conf` from `templates/pi-hole.conf.j2`, root-owned, mode `0644`, so the container's `unbound` user (UID 101) can read it. |
-| Allow Pi-hole ports through UFW | One `allow` rule per entry in `dns_host_ufw_allowed`. |
+| Allow Pi-hole ports through UFW | One `allow` rule per entry in `dns_host_ufw_allowed`. An entry can limit the source with `from_ip` (default `any`), and an entry with `delete: true` removes its rule instead. |
 | Allow DHCP (67/udp) only when Pi-hole DHCP is active | Adds the rule when `dns_host_dhcp_active` is true and deletes it when it's false, so switching DHCP off also closes the port. |
 
 The handler only runs at the end of the play, after the symlink has moved, so the host never loses DNS during a run.
@@ -51,7 +51,8 @@ All are in `defaults/main.yml` and can be overridden from `group_vars` or `host_
 | `dns_host_config_root` | `/opt/homelab` | Where stack config files live on the host. The compose file mounts them by absolute path. |
 | `dns_host_web_port` | `"8081"` | Pi-hole's web UI port, opened in UFW. Must match `FTLCONF_webserver_port` in `stacks/dns/compose.yaml`. |
 | `dns_host_dhcp_active` | `false` | Opens 67/udp when `true`. **Never `true` on the test VM:** it's bridged onto the home LAN, and a second DHCP server would hand out wrong addresses. Pi-hole's own DHCP setting is `PIHOLE_DHCP_ACTIVE` in Portainer; set both together. |
-| `dns_host_ufw_allowed` | 53/tcp, 53/udp, `dns_host_web_port`/tcp | UFW allow rules for Pi-hole: a list of `port`, `proto` and `comment`. |
+| `dns_host_proxy_subnet` | `"172.20.0.0/24"` | The `proxy` network's subnet. Pi-hole's web port is allowed only from here, so only Nginx Proxy Manager reaches it. Must match `docker_proxy_subnet`. |
+| `dns_host_ufw_allowed` | 53/tcp and 53/udp from anywhere; `dns_host_web_port`/tcp from `dns_host_proxy_subnet`; the old open web-port rule marked `delete: true` | UFW rules for Pi-hole: a list of `port`, `proto` and `comment`, plus optional `from_ip` (default `any`) and `delete` (default `false`). |
 
 ## Example
 
@@ -69,7 +70,8 @@ All are in `defaults/main.yml` and can be overridden from `group_vars` or `host_
 ## Notes
 
 - **The server doesn't use its own Pi-hole.** Its DNS comes from DHCP (test VM) or netplan (production), so Docker can still pull images when Pi-hole is down.
-- **Removing an entry from `dns_host_ufw_allowed` doesn't close the port.** Only the DHCP rule deletes itself; any other rule needs a task with `delete: true`.
+- **Removing an entry from `dns_host_ufw_allowed` doesn't close the port.** Ansible stops managing the rule, and UFW keeps it. To close a port, keep the entry and add `delete: true`, as the old open 8081 rule does.
+- **Pi-hole's web UI is reached through Nginx Proxy Manager** at `https://pihole.home.arpa/admin`. NPM forwards to the host's address on the `proxy` network (`172.20.0.1:8081`); the request arrives on the host, so UFW's INPUT rules apply, and only `dns_host_proxy_subnet` is allowed. From the LAN, port 8081 times out.
 - **Unbound only reads `pi-hole.conf` when it starts.** After this role changes the file, restart the `unbound` container from Portainer.
 - Pi-hole runs on the host network, so UFW applies to it. Unbound's port is published by Docker, which bypasses UFW, so it's bound to `127.0.0.1` in the compose file instead.
 

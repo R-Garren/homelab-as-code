@@ -11,8 +11,6 @@ services:
       - "80:80"               # HTTP on the LAN (redirects to HTTPS once Force SSL is on)
       - "443:443"             # HTTPS on the LAN
       - "127.0.0.1:81:81"     # admin UI: loopback only, reach it through an SSH tunnel
-    extra_hosts:
-      - "host.docker.internal:host-gateway"   # lets NPM reach pi-hole on the host
     environment:
       TZ: "America/New_York"
     volumes:

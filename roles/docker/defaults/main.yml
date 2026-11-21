@@ -24,3 +24,7 @@ docker_users: []
 # max-file log files of max-size each. Docker wants both values as strings
 docker_log_max_size: "10m"
 docker_log_max_file: "3"
+
+# Shared network for containers that sit behind Nginx Proxy Manager
+docker_proxy_network: proxy
+docker_proxy_subnet: "172.20.0.0/24"

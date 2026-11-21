@@ -15,3 +15,5 @@
     volumes:
       - "{{ portainer_volume_name }}:/data"
       - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - name: "{{ portainer_network }}"

@@ -12,3 +12,7 @@ portainer_volume_name: portainer_data
 portainer_https_port: 9443
 
 portainer_restart_policy: unless-stopped
+
+# Docker network shared with NPM. The docker role creates it,
+# so this must match docker_proxy_network.
+portainer_network: proxy

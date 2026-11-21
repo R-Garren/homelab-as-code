@@ -42,6 +42,7 @@
 - name: Allow Pi-hole ports through UFW
   community.general.ufw:
     rule: allow
+    from_ip: "{{ item.from_ip | default('any') }}"
     port: "{{ item.port }}"
     proto: "{{ item.proto }}"
     comment: "{{ item.comment }}"

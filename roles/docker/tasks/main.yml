@@ -85,3 +85,11 @@
     mode: '0644'
     validate: dockerd --validate --config-file=%s
   notify: Restart Docker
+
+- name: Create the shared proxy network
+  community.docker.docker_network:
+    name: "{{ docker_proxy_network }}"
+    driver: bridge
+    ipam_config:
+      - subnet: "{{ docker_proxy_subnet }}"
+    state: present

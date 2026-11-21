@@ -1,0 +1,33 @@
+---
+# Proxy stack: Nginx Proxy Manager
+# Deployed by Portainer as a Git-repository stack.
+# The proxy network is created by the Ansible docker role (docker_proxy_network).
+
+services:
+  npm:
+    image: jc21/nginx-proxy-manager:2.17.0@sha256:91277490a919c792aa73b8d291af1ca84d32be74df988e543137976515763534
+    container_name: npm
+    ports:
+      - "80:80"               # HTTP on the LAN (redirects to HTTPS once Force SSL is on)
+      - "443:443"             # HTTPS on the LAN
+      - "127.0.0.1:81:81"     # admin UI: loopback only, reach it through an SSH tunnel
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # lets NPM reach pi-hole on the host
+    environment:
+      TZ: "America/New_York"
+    volumes:
+      - npm_data:/data                    # NPM's database, proxy hosts, uploaded certificates
+      - npm_letsencrypt:/etc/letsencrypt  # unused with a private CA, but the image expects it
+    networks:
+      - proxy
+    labels:
+      homelab.deployed-by: "portainer-gitops"
+    restart: unless-stopped
+
+volumes:
+  npm_data:
+  npm_letsencrypt:
+
+networks:
+  proxy:
+    external: true             # created by Ansible, not by this stack

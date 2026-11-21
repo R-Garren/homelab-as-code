@@ -33,6 +33,7 @@ services:
       FTLCONF_ntp_ipv4_active: "false"
       FTLCONF_ntp_ipv6_active: "false"
       FTLCONF_ntp_sync_active: "false"
+      FTLCONF_dns_hosts: "${HOMELAB_IP:?Set HOMELAB_IP in the Portainer stack env vars} npm.home.arpa pihole.home.arpa portainer.home.arpa"
     volumes:
       - pihole_data:/etc/pihole
     restart: unless-stopped

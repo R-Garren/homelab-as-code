@@ -1,0 +1,156 @@
+---
+- name: Check that the admin password is set
+  ansible.builtin.assert:
+    that: portainer_stacks_admin_password | length > 0
+    fail_msg: "Set portainer_stacks_admin_password from Vault"
+    quiet: true
+
+# Portainer publishes no port (Week 7), so talk to the container over the proxy network.
+- name: Look up the Portainer container
+  community.docker.docker_container_info:
+    name: "{{ portainer_stacks_container_name }}"
+  register: portainer_stacks_container
+  no_log: true   # the inspect output includes the container's env, so the setup token
+
+- name: Build the Portainer API address
+  ansible.builtin.set_fact:
+    portainer_stacks_api: "https://{{ portainer_stacks_container.container.NetworkSettings.Networks[portainer_stacks_network].IPAddress }}:9443/api"
+
+- name: Wait for Portainer to answer
+  ansible.builtin.uri:
+    url: "{{ portainer_stacks_api }}/system/status"
+    validate_certs: false   # Portainer's self-signed cert; traffic stays on the server
+  register: portainer_stacks_status
+  until: portainer_stacks_status.status == 200
+  retries: 30
+  delay: 2
+
+- name: Check whether an admin exists
+  ansible.builtin.uri:
+    url: "{{ portainer_stacks_api }}/users/admin/check"
+    validate_certs: false
+    status_code: [204, 404]
+  register: portainer_stacks_admin_check
+
+- name: Create the admin user (first run only)
+  ansible.builtin.uri:
+    url: "{{ portainer_stacks_api }}/users/admin/init"
+    method: POST
+    validate_certs: false
+    headers:
+      X-Setup-Token: "{{ portainer_stacks_setup_token }}"
+    body_format: json
+    body:
+      Username: "{{ portainer_stacks_admin_user }}"
+      Password: "{{ portainer_stacks_admin_password }}"
+    status_code: 200
+  when: portainer_stacks_admin_check.status == 404
+  changed_when: true
+  no_log: true
+
+- name: Log in to the Portainer API
+  ansible.builtin.uri:
+    url: "{{ portainer_stacks_api }}/auth"
+    method: POST
+    validate_certs: false
+    body_format: json
+    body:
+      Username: "{{ portainer_stacks_admin_user }}"
+      Password: "{{ portainer_stacks_admin_password }}"
+    status_code: 200
+  register: portainer_stacks_auth
+  changed_when: false
+  no_log: true
+
+- name: Save the auth header for later calls
+  ansible.builtin.set_fact:
+    portainer_stacks_headers:
+      Authorization: "Bearer {{ portainer_stacks_auth.json.jwt }}"
+  no_log: true
+
+# With -H, Portainer creates its environment just after the admin, so wait for it.
+- name: Wait for the Docker environment
+  ansible.builtin.uri:
+    url: "{{ portainer_stacks_api }}/endpoints"
+    validate_certs: false
+    headers: "{{ portainer_stacks_headers }}"
+  register: portainer_stacks_endpoints
+  until: >-
+    portainer_stacks_endpoints.status == 200 and
+    (portainer_stacks_endpoints.json | default([], true)
+     | selectattr('URL', 'equalto', portainer_stacks_docker_url) | list | length) > 0
+  retries: 15
+  delay: 2
+  no_log: true
+
+- name: Save the environment ID
+  ansible.builtin.set_fact:
+    portainer_stacks_endpoint_id: >-
+      {{ (portainer_stacks_endpoints.json
+          | selectattr('URL', 'equalto', portainer_stacks_docker_url) | first).Id }}
+
+- name: List Git sources
+  ansible.builtin.uri:
+    url: "{{ portainer_stacks_api }}/gitops/sources"
+    validate_certs: false
+    headers: "{{ portainer_stacks_headers }}"
+  register: portainer_stacks_sources
+  no_log: true
+
+- name: Create the Git source (first run only)
+  ansible.builtin.uri:
+    url: "{{ portainer_stacks_api }}/gitops/sources/git"
+    method: POST
+    validate_certs: false
+    headers: "{{ portainer_stacks_headers }}"
+    body_format: json
+    body:
+      name: "{{ portainer_stacks_source_name }}"
+      url: "{{ portainer_stacks_source_url }}"
+      interval: "{{ portainer_stacks_source_interval }}"
+    status_code: 201
+  register: portainer_stacks_source_created
+  when: >-
+    portainer_stacks_source_name not in
+    (portainer_stacks_sources.json | default([], true) | map(attribute='name') | list)
+  changed_when: true
+  no_log: true
+
+- name: Save the Git source ID
+  ansible.builtin.set_fact:
+    portainer_stacks_source_id: >-
+      {{ portainer_stacks_source_created.json.id
+         if portainer_stacks_source_created is changed
+         else (portainer_stacks_sources.json
+               | selectattr('name', 'equalto', portainer_stacks_source_name) | first).id }}
+
+- name: List existing stacks
+  ansible.builtin.uri:
+    url: "{{ portainer_stacks_api }}/stacks"
+    validate_certs: false
+    headers: "{{ portainer_stacks_headers }}"
+  register: portainer_stacks_existing
+  no_log: true
+
+- name: Save the existing stack names
+  ansible.builtin.set_fact:
+    portainer_stacks_existing_names: "{{ portainer_stacks_existing.json | default([], true) | map(attribute='Name') | list }}"
+
+- name: Create each missing stack
+  ansible.builtin.uri:
+    url: "{{ portainer_stacks_api }}/stacks/create/standalone/repository?endpointId={{ portainer_stacks_endpoint_id }}"
+    method: POST
+    validate_certs: false
+    headers: "{{ portainer_stacks_headers }}"
+    body_format: json
+    body:
+      Name: "{{ item.name }}"
+      SourceID: "{{ portainer_stacks_source_id | int }}"
+      RepositoryReferenceName: "{{ portainer_stacks_git_ref }}"
+      ComposeFile: "{{ item.compose_file }}"
+      Env: "{{ item.env }}"
+    status_code: 200
+  loop: "{{ portainer_stacks_list }}"
+  when: item.name not in portainer_stacks_existing_names
+  changed_when: true
+  no_log: true

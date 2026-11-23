@@ -56,3 +56,7 @@
     proto: udp
     comment: "Pi-hole DHCP"
     delete: "{{ not dns_host_dhcp_active }}"
+
+# Free port 53 (stub listener off) before the dns stack is deployed.
+- name: Apply pending systemd-resolved restarts now
+  ansible.builtin.meta: flush_handlers

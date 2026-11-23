@@ -5,6 +5,22 @@ base_timezone: America/New_York
 
 ansible_become_password: "{{ vault_ansible_become_password }}"
 
+portainer_setup_token: "{{ vault_portainer_setup_token }}"
+portainer_stacks_admin_password: "{{ vault_portainer_admin_password }}"
+portainer_stacks_setup_token: "{{ vault_portainer_setup_token }}"
+
+portainer_stacks_list:
+  - name: dns
+    compose_file: stacks/dns/compose.yaml
+    env:
+      - name: PIHOLE_PASSWORD
+        value: "{{ vault_pihole_password }}"
+      - name: HOMELAB_IP
+        value: "{{ ansible_host }}"
+  - name: proxy
+    compose_file: stacks/proxy/compose.yaml
+    env: []
+
 docker_users: [test-homelab]
 
 # DHCP must never be true on the test VM

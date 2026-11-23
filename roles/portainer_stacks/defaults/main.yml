@@ -1,0 +1,19 @@
+---
+portainer_stacks_container_name: portainer
+portainer_stacks_network: proxy
+portainer_stacks_admin_user: admin
+# Set these from Vault in group_vars (ADR 0006)
+portainer_stacks_admin_password: ""
+portainer_stacks_setup_token: ""
+
+# Docker environment to deploy into, found by URL
+portainer_stacks_docker_url: "unix:///var/run/docker.sock"
+
+# Git source that every stack uses
+portainer_stacks_source_name: homelab-as-code
+portainer_stacks_source_url: "https://github.com/R-Garren/homelab-as-code"
+portainer_stacks_source_interval: 5m
+portainer_stacks_git_ref: refs/heads/main
+
+# Stacks to create. Each item: name, compose_file, env
+portainer_stacks_list: []

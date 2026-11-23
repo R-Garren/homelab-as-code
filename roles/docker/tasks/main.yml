@@ -94,3 +94,8 @@
       - subnet: "{{ docker_proxy_subnet }}"
         gateway: "{{ docker_proxy_gateway }}"
     state: present
+
+# Restart Docker now if its config changed. Left to the end of the play, the
+# restart would kill containers that later roles start (Week 8 finding).
+- name: Apply pending Docker restarts now
+  ansible.builtin.meta: flush_handlers

@@ -13,6 +13,11 @@
     image: "{{ portainer_image }}"
     state: started
     restart_policy: "{{ portainer_restart_policy }}"
+    command:
+      - "-H"
+      - "{{ portainer_docker_endpoint }}"
+    env:
+      PORTAINER_SETUP_TOKEN: "{{ portainer_setup_token }}"
     published_ports: []
     comparisons:
       published_ports: strict
@@ -21,3 +26,4 @@
       - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
       - name: "{{ portainer_network }}"
+  no_log: true

@@ -28,8 +28,9 @@ All tasks are in `tasks/main.yml`, in this order:
 | Create the Docker config directory | `/etc/docker`, mode `0755`. |
 | Configure Docker log rotation | Writes `/etc/docker/daemon.json` from `templates/daemon.json.j2`, checked with `dockerd --validate` before it's put in place, and notifies `Restart Docker`. |
 | Create the shared proxy network | Creates the bridge network `docker_proxy_network` with a fixed subnet and gateway. NPM joins it from its stack, and the `portainer` role joins Portainer to it. |
+| Apply pending Docker restarts now | `meta: flush_handlers`: runs `Restart Docker` here instead of at the end of the play. Also runs any handler an earlier role notified, such as `base`'s SSH restart. |
 
-The `Restart Docker` handler runs only when `daemon.json` changed. Restarting Docker stops running containers for a moment.
+The `Restart Docker` handler runs only when `daemon.json` changed, at the end of this role. Restarting Docker stops running containers for a moment. Left to the end of the play, the restart came after `portainer_stacks` had asked Portainer to deploy the stacks, and cut those deployments off (Week 8), so the role flushes its handlers before any container starts.
 
 ## Variables
 

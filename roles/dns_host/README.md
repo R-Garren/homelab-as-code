@@ -22,8 +22,11 @@ All tasks are in `tasks/main.yml`, in this order:
 | Template the Unbound override file | Writes `pi-hole.conf` from `templates/pi-hole.conf.j2`, root-owned, mode `0644`, so the container's `unbound` user (UID 101) can read it. |
 | Allow Pi-hole ports through UFW | One `allow` rule per entry in `dns_host_ufw_allowed`. An entry can limit the source with `from_ip` (default `any`), and an entry with `delete: true` removes its rule instead. |
 | Allow DHCP (67/udp) only when Pi-hole DHCP is active | Adds the rule when `dns_host_dhcp_active` is true and deletes it when it's false, so switching DHCP off also closes the port. |
+| Apply pending systemd-resolved restarts now | `meta: flush_handlers`: restarts systemd-resolved here, so port 53 is free before Portainer deploys the `dns` stack. |
 
-The handler only runs at the end of the play, after the symlink has moved, so the host never loses DNS during a run.
+The handler runs at the end of this role, after the symlink has moved, so the host never loses DNS during a run.
+
+**Run this role before `portainer`.** Docker gives a container its DNS servers when it's created. A Portainer container created while `/etc/resolv.conf` still pointed at the stub listener keeps forwarding DNS to `127.0.0.53` after this role turns the stub off, so it can't resolve `github.com` and stack creation fails with HTTP 500 (Week 8).
 
 ### The Unbound override file
 
@@ -63,8 +66,9 @@ All are in `defaults/main.yml` and can be overridden from `group_vars` or `host_
   roles:
     - base
     - docker
-    - portainer
     - dns_host
+    - portainer
+    - portainer_stacks
 ```
 
 ## Notes

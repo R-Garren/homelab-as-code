@@ -13,3 +13,12 @@ portainer_restart_policy: unless-stopped
 # Docker network shared with NPM. The docker role creates it,
 # so this must match docker_proxy_network.
 portainer_network: proxy
+
+# Custom setup token for first-run admin creation (ADR 0006).
+# Empty = Portainer makes a random one and prints it in its log
+# Ignored once admin exists
+portainer_setup_token: ""
+
+# Docker address Portainer manages. With -H, Portainer creates its environment ("primary")
+# right after the admin is created, so no browser setup is needed.
+portainer_docker_endpoint: "unix:///var/run/docker.sock"

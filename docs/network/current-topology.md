@@ -54,7 +54,7 @@ Gateway ports: 1 desktop, 2 gateway eero, 3 ThinkPad 11e, 4 game console. No dev
 | LAN IPv6 | Off | No IPv6 DNS path around Pi-hole |
 | VLAN support | None | The web UI has no VLAN pages (checked against the full site map) |
 | LAN ports | 4 of 4 in use: 1 desktop, 2 gateway eero, 3 ThinkPad, 4 console | Nothing new can be wired to the gateway without a switch |
-| Port forwards | 1: UDP 51820 → server (v1 WireGuard). **Deleted 2026-11-16** before the migration, since the v1 VPN was unused | No inbound openings now. Week 12 adds WireGuard back with fresh keys |
+| Port forwards | 1: UDP 51820 → server (v1 WireGuard). **Deleted 2026-11-16** before the migration, since the v1 VPN was unused | No inbound openings now. Week 11 adds WireGuard back with fresh keys |
 
 ## Mesh: 3 × eero 6+
 
@@ -67,7 +67,7 @@ Gateway ports: 1 desktop, 2 gateway eero, 3 ThinkPad 11e, 4 game console. No dev
 | IPv6 | Off | No IPv6 DNS path around Pi-hole |
 | Reservations and port forwards | None | Nothing to recreate before bridge mode |
 | Profiles | None | Nothing lost in bridge mode |
-| Guest network | Never configured | Check after Step 8 whether it is still offered (input for Week 11) |
+| Guest network | Never configured | Check after Step 8 whether it is still offered (input for the segmentation plan) |
 | eero Plus | Not subscribed | Nothing lost in bridge mode |
 | UPnP | On | Devices can open ports on the eero; goes away in bridge mode |
 | Firmware | Update available on all three | Update before Step 8 |
@@ -179,4 +179,4 @@ Wired ports are unchanged. Every device, wired or wireless, is now on the same s
 
 - Add the DHCP reservations from [ip-plan.md](ip-plan.md): eeros .2–.4, printer .52, PS5 .53, Switch .54. The test VM's .50 waits for the new v2 VM.
 - Update the eero firmware, on a day with no other changes.
-- Find what is advertising IPv6: the server picked up two IPv6 unique local addresses even though IPv6 is off on the gateway, so another device on the LAN is sending router advertisements. It matters for Week 11's firewall rules.
+- Find what is advertising IPv6: the server picked up two IPv6 unique local addresses even though IPv6 is off on the gateway, so another device on the LAN is sending router advertisements. It matters for the segmentation plan's firewall rules.

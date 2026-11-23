@@ -75,14 +75,14 @@ NPM's proxy hosts live in its own database, not in this repo; that gap is explai
 - Unbound listens on `127.0.0.1` only and validates DNSSEC; Pi-hole uses it as its only upstream. Pi-hole runs on the host network, so UFW covers its ports: DNS for the LAN, and the web UI only from the proxy network. DHCP stays off unless a variable turns it on.
 - GitHub secret scanning and push protection are on.
 - Private notes, the device inventory and Pi-hole backups never enter the repo (see `.gitignore`).
-- Known limitation: the home network is one flat subnet until the segmentation lab in Week 11.
+- Known limitation: the home network is one flat subnet. VLAN segmentation is out of scope for v2 ([segmentation plan](docs/network/segmentation-plan.md)).
 
 ## Network docs
 
 - [Current topology](docs/network/current-topology.md)
 - [IP plan](docs/network/ip-plan.md)
 - [Migration runbook](docs/network/migration-runbook.md)
-- [Segmentation plan](docs/network/segmentation-plan.md)
+- [Segmentation plan](docs/network/segmentation-plan.md) (future project, not part of v2)
 
 ## Progress
 
@@ -97,8 +97,7 @@ NPM's proxy hosts live in its own database, not in this repo; that gap is explai
 - [ ] Week 8: Automate Portainer through its API
 - [ ] Week 9: Backups, CI and a disaster-recovery drill
 - [ ] Week 10: Production cutover (v2.0.0)
-- [ ] Week 11: Network segmentation lab: OPNsense VLANs + Suricata (v2.1.0)
-- [ ] Week 12: WireGuard remote access (v2.2.0)
+- [ ] Week 11: WireGuard remote access (v2.1.0)
 
 ## v1 → v2
 

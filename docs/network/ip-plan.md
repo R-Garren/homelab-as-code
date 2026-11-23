@@ -4,7 +4,7 @@
 
 ## Why move off 192.168.1.0/24
 
-192.168.1.0/24 is the most common home subnet. In Week 12 I'll connect to WireGuard from other people's networks, and many of them also use 192.168.1.x. When both ends use the same subnet, a phone can't tell which 192.168.1.10 is meant, and the tunnel breaks. An uncommon third octet avoids that.
+192.168.1.0/24 is the most common home subnet. In Week 11 I'll connect to WireGuard from other people's networks, and many of them also use 192.168.1.x. When both ends use the same subnet, a phone can't tell which 192.168.1.10 is meant, and the tunnel breaks. An uncommon third octet avoids that.
 
 The AT&T BGW320 reportedly accepts 192.168.x.x and 172.16.x.x LAN ranges but not 10.x.x.x, so the plan stays in 192.168.x.x.
 
@@ -42,7 +42,7 @@ The AT&T BGW320 reportedly accepts 192.168.x.x and 172.16.x.x LAN ranges but not
 | 192.168.77.4 | eero access point | Reservation |
 | 192.168.77.10 | ThinkPad 11e: Pi-hole, Unbound, Nginx Proxy Manager, Portainer | Static (netplan) |
 | 192.168.77.50 | Ubuntu test VM | Reservation |
-| 192.168.77.51 | OPNsense lab WAN (Week 11) | Reservation |
+| 192.168.77.51 | Spare (was the OPNsense lab WAN, dropped from v2) | — |
 | 192.168.77.52 | Printer | Reservation |
 
 Phones, tablets and watches use private (randomized) MAC addresses. A reservation only works if the device's private address is set to **Fixed** for this network.
@@ -74,8 +74,8 @@ Any future subnet must not overlap these:
 | 192.168.77.0/24 | This home LAN |
 | 192.168.56.0/24 | VirtualBox host-only network on the control node |
 | 172.30.64.0/20 | WSL on the control node (can change after a reboot) |
-| 10.13.13.0/24 | WireGuard tunnel (Week 12) |
-| 192.168.10.0/24 – 192.168.50.0/24 | VLAN lab subnets (see [segmentation-plan.md](segmentation-plan.md)) |
+| 10.13.13.0/24 | WireGuard tunnel (Week 11) |
+| 192.168.10.0/24 – 192.168.50.0/24 | Reserved for the future segmentation project (see [segmentation-plan.md](segmentation-plan.md)) |
 
 ## Migration
 

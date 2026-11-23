@@ -28,7 +28,7 @@ Device MAC addresses are in `private/inventory.md`, not in this file.
 - ⏭ **Update the eero firmware:** deferred until after the migration (decided 2026-11-17). Not needed for this session. Never do it on the day itself.
 - ☑ **Pi-hole Teleporter backup exported** (2026-11-17) and saved on the desktop, not on the server. This is the Phase 2 rollback.
 - ☑ **Gateway port forwards checked** (Firewall → NAT/Gaming, screenshot in `private/evidence/`). There is **one rule**: "WireGuard", UDP 51820 → the server (listed by its network card maker, "Quanta Computer Inc."). The gateway ties the rule to the device, not to a typed IP address.
-- ☑ **v1 WireGuard forward deleted** (2026-11-16). Nobody uses the v1 VPN, and Week 12 recreates it with fresh keys. The custom service definition "*WireGuard" is still saved on the gateway and can be reused then. Step 2.7 is skipped.
+- ☑ **v1 WireGuard forward deleted** (2026-11-16). Nobody uses the v1 VPN, and Week 11 recreates it with fresh keys. The custom service definition "*WireGuard" is still saved on the gateway and can be reused then. Step 2.7 is skipped.
 - ☑ **Hard-coded address list built** (2026-11-17, `grep` of `/etc` and both compose files):
 
   | Where | What | Handled in |
@@ -39,7 +39,7 @@ Device MAC addresses are in `private/inventory.md`, not in this file.
   | Pi-hole local DNS records | `pihole.lan`, `portainer.lan` → 192.168.1.10; `wazuh.lan` (no Wazuh container is running) | Step 2.6 |
   | Nginx Proxy Manager proxy hosts | `pihole.lan` → `https://192.168.1.10:8443`; `wazuh.lan` → `https://192.168.1.10:5601` (Wazuh not running). `portainer.lan` → `http://portainer:9000` uses the container name, no change | Step 2.6 |
   | `/etc/iptables/rules.v4` | 4 leftover v1 rules redirecting port 53 to 192.168.1.10. Would have broken DNS after the switch | ☑ **Removed** 2026-11-17 (live and in the file); DNS tested OK |
-  | v1 WireGuard container | Not needed until Week 12 | ☑ **Stopped** 2026-11-17 (`docker compose down`) |
+  | v1 WireGuard container | Not needed until Week 11 | ☑ **Stopped** 2026-11-17 (`docker compose down`) |
   | Unbound | Listens on 127.0.0.1 only | Nothing to do |
   | Conditional forwarding | Not configured | Nothing to do |
 

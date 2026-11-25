@@ -78,6 +78,6 @@ Every host has Force SSL and HTTP/2 on. HSTS is off: it would make browsers refu
 
 - **Caddy or Traefik would close it.** Both keep their routes in files (a `Caddyfile`, or labels and YAML), so the routes could live in `stacks/`. Switching means learning a second proxy and giving up NPM's UI, and it's worth a look after v2.0.
 - **NPM has an API.** Week 8 already automates Portainer through its API; NPM's proxy hosts could be created the same way later.
-- **Until then, backups cover it.** The VirtualBox snapshot `07d-proxy-hosts` holds the test VM's NPM state. Week 9 backs up the `npm_data` volume and restores it in the disaster-recovery drill. The three hosts are also listed here and in the build log, so they can be re-created by hand in a few minutes.
+- **Until then, backups cover it.** The VirtualBox snapshot `07d-proxy-hosts` held the test VM's NPM state; since the move to Hyper-V on 25 Nov 2026 the checkpoint `02-from-zero` does ([ADR 0007](0007-test-vm-on-hyper-v.md)). Week 9 backs up the `npm_data` volume and restores it in the disaster-recovery drill. The three hosts are also listed here and in the build log, so they can be re-created by hand in a few minutes.
 
 **The certificate has to be re-uploaded** whenever `pki.yml` re-issues it (renewal, a new name). NPM keeps its own copy, so a new file in `~/.homelab-pki/` changes nothing until it's uploaded.

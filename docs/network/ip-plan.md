@@ -41,7 +41,7 @@ The AT&T BGW320 reportedly accepts 192.168.x.x and 172.16.x.x LAN ranges but not
 | 192.168.77.3 | eero access point | Reservation |
 | 192.168.77.4 | eero access point | Reservation |
 | 192.168.77.10 | ThinkPad 11e: Pi-hole, Unbound, Nginx Proxy Manager, Portainer | Static (netplan) |
-| 192.168.77.50 | Ubuntu test VM | Reservation |
+| 192.168.77.50 | Ubuntu test VM (Hyper-V) | Reservation |
 | 192.168.77.51 | Spare (was the OPNsense lab WAN, dropped from v2) | — |
 | 192.168.77.52 | Printer | Reservation |
 
@@ -72,7 +72,6 @@ Any future subnet must not overlap these:
 | Subnet | Used by |
 |---|---|
 | 192.168.77.0/24 | This home LAN |
-| 192.168.56.0/24 | VirtualBox host-only network on the control node |
 | 172.30.64.0/20 | WSL on the control node (can change after a reboot) |
 | 10.13.13.0/24 | WireGuard tunnel (Week 11) |
 | 192.168.10.0/24 – 192.168.50.0/24 | Reserved for the future segmentation project (see [segmentation-plan.md](segmentation-plan.md)) |

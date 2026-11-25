@@ -315,7 +315,7 @@ Then **Save & Apply** (with DHCP still **off**).
 ## The next day
 
 - ☐ **Check Pi-hole's lease list** against the inventory once more, and the gateway's Device List for anything still on 192.168.1.x. Power-cycle any straggler. With 1-day leases, a device that was asleep or missed the reconnect only shows up here.
-- ☐ **Add the DHCP reservations** deferred from Part 0, using the table in step 2.8. Copy each MAC from Pi-hole's lease list (Settings → DHCP), then restart that device so it picks up its reserved address. The test VM's MAC is in VirtualBox (VM → Settings → Network → Adapter 1 → Advanced).
+- ☐ **Add the DHCP reservations** deferred from Part 0, using the table in step 2.8. Copy each MAC from Pi-hole's lease list (Settings → DHCP), then restart that device so it picks up its reserved address. The test VM's MAC is in Hyper-V Manager (VM → Settings → Network Adapter → Advanced Features); before 25 Nov 2026 it was in VirtualBox.
 - ☐ **Update the eero firmware** (deferred from Part 0), on a different day from any other change. Confirm all three eeros come back online.
 - ☐ **Add the "After" diagram** to [current-topology.md](current-topology.md).
 - ☐ **Show someone else in the house the "Pi-hole is down" fallback** from [ip-plan.md](ip-plan.md): gateway → Subnets & DHCP → DHCP **On**.

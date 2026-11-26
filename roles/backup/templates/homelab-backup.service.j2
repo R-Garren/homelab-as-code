@@ -1,0 +1,10 @@
+# Managed by Ansible (role: backup)
+[Unit]
+Description=Back up homelab Docker volumes
+Requires=docker.service
+After=docker.service
+
+[Service]
+# Runs once and exits (not a long-running daemon)
+Type=oneshot
+ExecStart=/usr/local/bin/homelab-backup.sh

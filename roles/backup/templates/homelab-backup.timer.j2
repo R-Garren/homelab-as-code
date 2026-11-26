@@ -1,0 +1,11 @@
+# Managed by Ansible (role: backup)
+[Unit]
+Description=Nightly homelab backup
+
+[Timer]
+OnCalendar={{ backup_schedule }}
+# If the machine was off at the scheduled time, run at next boot
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,27 @@
+---
+# Where archives are written on the server. Root-only: they contain password hashes and keys.
+backup_dir: /var/backups/homelab
+
+# Archives older than this many days are deleted
+backup_retention_days: 7
+
+# systemd OnCalendar format. Nightly, well before the 04:00 auto-reboot.
+# Test it with: systemd-analyze calendar "<value>"
+backup_schedule: "*-*-* 02:30:00"
+
+# Throwaway container that runs tar. Pinned; check hub.docker.com/_/alpine before bumping.
+backup_helper_image: "alpine:3.24.4"
+
+# Docker volumes to archive. Exact names from `docker volume ls`
+# (Portainer prefixes each volume with its stack name).
+backup_volumes:
+  - dns_pihole_data
+  - proxy_npm_data
+  - proxy_npm_letsencrypt
+  - portainer_data
+
+# Containers stopped during the backup so their databases are copied in a consistent state
+backup_stop_containers:
+  - pihole
+  - npm
+  - portainer

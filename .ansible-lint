@@ -1,0 +1,8 @@
+---
+# ansible-lint settings: https://ansible.readthedocs.io/projects/lint/configuring/
+# The strictest profile. Every role and playbook passed it on 2026-11-26,
+# so CI fails on anything that would lower the bar.
+profile: production
+
+# No exclude_paths needed: ansible-lint recognizes the vault.yml files by their
+# $ANSIBLE_VAULT header and skips them.

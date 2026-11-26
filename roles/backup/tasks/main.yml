@@ -1,0 +1,54 @@
+---
+- name: Create the backup directory
+  ansible.builtin.file:
+    path: "{{ backup_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# Pulled now, so the 02:30 run doesn't depend on Docker Hub being reachable
+- name: Pull the backup helper image
+  community.docker.docker_image:
+    name: "{{ backup_helper_image }}"
+    source: pull
+
+- name: Install the backup script
+  ansible.builtin.template:
+    src: homelab-backup.sh.j2
+    dest: /usr/local/bin/homelab-backup.sh
+    owner: root
+    group: root
+    mode: "0750"
+    validate: bash -n %s
+
+- name: Install the backup service unit
+  ansible.builtin.template:
+    src: homelab-backup.service.j2
+    dest: /etc/systemd/system/homelab-backup.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install the backup timer unit
+  ansible.builtin.template:
+    src: homelab-backup.timer.j2
+    dest: /etc/systemd/system/homelab-backup.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart backup timer
+
+# systemd has to know about the new units before we can enable the timer
+- name: Apply pending systemd reloads now
+  ansible.builtin.meta: flush_handlers
+
+# Enable the TIMER, not the service. The timer starts the service on schedule.
+- name: Enable and start the backup timer
+  ansible.builtin.systemd_service:
+    name: homelab-backup.timer
+    enabled: true
+    state: started

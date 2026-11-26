@@ -1,0 +1,42 @@
+---
+# Lints the repo on every push to main and every pull request,
+# with the same versions as the control node (WSL).
+name: Lint
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ansible-lint:
+    name: ansible-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible and ansible-lint (same versions as the control node)
+        run: pip install ansible==14.6.0 ansible-lint==26.11.1
+
+      - name: Install the collections in requirements.yml
+        run: ansible-galaxy collection install -r requirements.yml
+
+      # ansible.cfg points at ~/.ansible/vault_pass.txt, and Ansible won't start
+      # without that file. The real password never leaves the desktop; lint never
+      # decrypts anything, so a dummy value is enough.
+      - name: Create a dummy vault password file
+        run: |
+          mkdir -p ~/.ansible
+          echo "not-the-real-password" > ~/.ansible/vault_pass.txt
+
+      - name: Run ansible-lint
+        run: ansible-lint

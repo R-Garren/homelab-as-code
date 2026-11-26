@@ -1,4 +1,5 @@
 # homelab-as-code
+[![Lint](https://github.com/R-Garren/homelab-as-code/actions/workflows/lint.yml/badge.svg)](https://github.com/R-Garren/homelab-as-code/actions/workflows/lint.yml)
 
 My home lab, built from scratch with Ansible and Docker: hardened, tested on a VM first, and rebuildable with one command.
 

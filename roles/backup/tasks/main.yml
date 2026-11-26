@@ -1,6 +1,6 @@
 ---
 - name: Create the backup directory
-  file:
+  ansible.builtin.file:
     path: "{{ backup_dir }}"
     state: directory
     owner: root

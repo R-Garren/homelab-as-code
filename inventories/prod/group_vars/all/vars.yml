@@ -1,0 +1,39 @@
+---
+ansible_python_interpreter: /usr/bin/python3
+
+base_timezone: America/New_York
+
+ansible_become_password: "{{ vault_ansible_become_password }}"
+
+portainer_setup_token: "{{ vault_portainer_setup_token }}"
+portainer_stacks_admin_password: "{{ vault_portainer_admin_password }}"
+portainer_stacks_setup_token: "{{ vault_portainer_setup_token }}"
+
+# DHCP scope from docs/network/ip-plan.md. Reservations (MAC addresses) stay
+# out of Git: they live in Pi-hole's data volume and are restored in Week 10.
+portainer_stacks_list:
+  - name: dns
+    compose_file: stacks/dns/compose.yaml
+    env:
+      - name: PIHOLE_PASSWORD
+        value: "{{ vault_pihole_password }}"
+      - name: HOMELAB_IP
+        value: "{{ ansible_host }}"
+      - name: PIHOLE_DHCP_ACTIVE
+        value: "true"
+      - name: PIHOLE_DHCP_START
+        value: "192.168.77.100"
+      - name: PIHOLE_DHCP_END
+        value: "192.168.77.249"
+      - name: PIHOLE_DHCP_ROUTER
+        value: "192.168.77.1"
+      - name: PIHOLE_DHCP_LEASE_TIME
+        value: "24h"
+  - name: proxy
+    compose_file: stacks/proxy/compose.yaml
+    env: []
+
+docker_users: [homelab]
+
+# Prod is the household's DHCP server (from Week 10): opens UDP 67 in UFW
+dns_host_dhcp_active: true

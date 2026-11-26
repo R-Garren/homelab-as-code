@@ -1,0 +1,47 @@
+---
+# Lints the repo on every push to main and every pull request,
+# with the same versions as the control node (WSL).
+name: Lint
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ansible-lint:
+    name: ansible-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible and ansible-lint (same versions as the control node)
+        run: pip install ansible==14.6.0 ansible-lint==26.11.1
+
+      - name: Install the collections in requirements.yml
+        run: ansible-galaxy collection install -r requirements.yml
+
+      # The real vault password never leaves the desktop. On the runner only
+      # (nothing is committed), each vault.yml is replaced by a stub encrypted
+      # with a dummy password, so ansible-playbook --syntax-check can load
+      # vars_files such as playbooks/vars/pki/vault.yml.
+      - name: Replace vault files with stubs encrypted with a dummy password
+        run: |
+          mkdir -p ~/.ansible
+          echo "ci-dummy-password" > ~/.ansible/vault_pass.txt
+          find . -name vault.yml -not -path './.git/*' | while read -r f; do
+            printf -- '---\nci_vault_stub: true\n' > "$f"
+            ansible-vault encrypt "$f"
+          done
+
+      - name: Run ansible-lint
+        run: ansible-lint

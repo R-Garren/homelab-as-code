@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Managed by Ansible (role: backup). Local edits are overwritten.
+# Archives Docker volumes to {{ backup_dir }} and deletes old archives.
+set -euo pipefail
+
+BACKUP_DIR="{{ backup_dir }}"
+STAMP="$(date +%F_%H%M)"        # e.g. 2026-11-27_0230; the time part keeps manual runs from overwriting
+
+# Runs when the script exits for any reason (success or failure),
+# so a failed tar never leaves DNS down.
+start_containers() {
+  docker start {{ backup_stop_containers | join(' ') }} > /dev/null
+}
+trap start_containers EXIT
+
+docker stop {{ backup_stop_containers | join(' ') }} > /dev/null
+
+for volume in {{ backup_volumes | join(' ') }}; do
+  # Mount the volume read-only at /source and the backup dir at /backup,
+  # then tar the CONTENTS of /source (-C /source .) into a gzip archive.
+  docker run --rm \
+    -v "${volume}:/source:ro" \
+    -v "${BACKUP_DIR}:/backup" \
+    {{ backup_helper_image }} \
+    tar -czf "/backup/${volume}_${STAMP}.tar.gz" -C /source .
+  chmod 600 "${BACKUP_DIR}/${volume}_${STAMP}.tar.gz"   # root read/write only
+done
+
+# Delete archives older than the retention period
+find "${BACKUP_DIR}" -name '*.tar.gz' -mtime +{{ backup_retention_days }} -delete
+
+echo "Backup finished: ${STAMP}"

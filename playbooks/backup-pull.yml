@@ -1,0 +1,45 @@
+---
+- name: Pull the newest backups to the control node
+  hosts: homelab
+  become: true                # /var/backups/homelab is root-only (0700)
+  vars:
+    backup_pull_src_dir: /var/backups/homelab
+    backup_pull_dest_dir: "{{ lookup('ansible.builtin.env', 'HOME') }}/homelab-backups/{{ inventory_hostname }}"
+
+  tasks:
+    - name: Create the destination directory on the control node
+      ansible.builtin.file:
+        path: "{{ backup_pull_dest_dir }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+
+    - name: Find the archives on the server
+      ansible.builtin.find:
+        paths: "{{ backup_pull_src_dir }}"
+        patterns: "*.tar.gz"
+      register: backup_pull_archives
+
+    - name: Stop if there is nothing to pull
+      ansible.builtin.assert:
+        that:
+          - backup_pull_archives.matched > 0
+        fail_msg: "No archives in {{ backup_pull_src_dir }}. Has the backup run?"
+
+    # Sort by modification time, take the newest file, and pull the stamp
+    # (e.g. 2026-11-26_1027) out of its name. Every archive from that run shares it.
+    - name: Work out the stamp of the newest run
+      ansible.builtin.set_fact:
+        backup_pull_stamp: >-
+          {{ (backup_pull_archives.files | sort(attribute='mtime') | last).path
+             | regex_search('[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}') }}
+
+    - name: Copy the newest run's archives to the control node
+      ansible.builtin.fetch:
+        src: "{{ item.path }}"
+        dest: "{{ backup_pull_dest_dir }}/"
+        flat: true
+      loop: "{{ backup_pull_archives.files | selectattr('path', 'search', backup_pull_stamp) | list }}"
+      loop_control:
+        label: "{{ item.path | basename }}"

@@ -6,9 +6,11 @@ What happens if the server is lost, how long recovery takes, and how much data c
 
 | | Target | Measured in the drill (2026-11-26) |
 |---|---|---|
-| **RTO** (time to working DNS with your data) | 15 minutes, from a freshly installed Ubuntu | **5 m 13 s** |
+| **RTO** (time to working DNS with your data) | 10 minutes, from a freshly installed Ubuntu | **5 m 13 s** |
 | **RPO** (data you can lose) | 24 hours (one backup a night, at 02:30) | 3 minutes: the restored backup was taken 3 minutes before the server was lost. No changes were made in between, so nothing was lost |
 | Data restored | Pi-hole lists and settings, NPM proxy hosts and certificate, Portainer | All of it, checked below |
+
+**Why 10 minutes:** about twice the drill's time, which leaves room for a slower machine (the ThinkPad 11e is slower than the desktop running the VM), a package mirror that's slow that day, and following the runbook under pressure. If a real recovery or a later drill goes over 10 minutes, the cause is a finding to fix, not a reason to raise the target. The reasons for backing up this way are in [ADR 0008](../adr/0008-backups.md).
 
 **What RTO includes here:** the clock starts with a bare Ubuntu Server install that already has the SSH key, and stops when Pi-hole answers DNS with the restored blocklists. Installing Ubuntu itself isn't included: in the drill, the Hyper-V checkpoint `01-fresh-install` stands in for it. Week 10 measures a real install on the ThinkPad.
 

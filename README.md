@@ -3,9 +3,11 @@
 
 My home lab, built from scratch with Ansible and Docker: hardened, tested on a VM first, and rebuildable with one command.
 
-**Status:** Week 8 of 12. A `base` role hardens SSH (keys only, no root login), turns on a deny-by-default UFW firewall, installs security updates automatically and sets the hostname and timezone. A `docker` role installs Docker Engine from Docker's signed repository with container log rotation, and creates the network the reverse proxy shares with the services behind it. A `portainer` role runs Portainer CE 2.45.3 LTS from a pinned image, with no published ports. A `dns_host` role frees port 53, places Unbound's config and opens Pi-hole's firewall ports. A `portainer_stacks` role creates Portainer's admin account, its Git source and the stacks through Portainer's API, with the passwords from Vault. Portainer deploys two app stacks straight from this repo and redeploys them when `main` changes: Pi-hole + Unbound with DNSSEC validation, and Nginx Proxy Manager. The admin UIs are reached only through NPM, at `https://<name>.home.arpa`, with certificates from a private CA built by `playbooks/pki.yml`. Secrets are encrypted with Ansible Vault.
+**Status:** Week 9 of 12. A `base` role hardens SSH (keys only, no root login), turns on a deny-by-default UFW firewall, installs security updates automatically and sets the hostname and timezone. A `docker` role installs Docker Engine from Docker's signed repository with container log rotation, and creates the network the reverse proxy shares with the services behind it. A `portainer` role runs Portainer CE 2.45.3 LTS from a pinned image, with no published ports. A `dns_host` role frees port 53, places Unbound's config and opens Pi-hole's firewall ports. A `portainer_stacks` role creates Portainer's admin account, its Git source and the stacks through Portainer's API, with the passwords from Vault. Portainer deploys two app stacks straight from this repo and redeploys them when `main` changes: Pi-hole + Unbound with DNSSEC validation, and Nginx Proxy Manager. The admin UIs are reached only through NPM, at `https://<name>.home.arpa`, with certificates from a private CA built by `playbooks/pki.yml`. A `backup` role archives the Docker volumes that hold state every night, and a disaster-recovery drill proved they restore. `ansible-lint` checks every push and pull request in GitHub Actions. Secrets are encrypted with Ansible Vault.
 
 **Bare Ubuntu to working DNS in about 2 minutes, with one command:** from a fresh Ubuntu Server install, `ansible-playbook playbooks/site.yml` took 2 m 05 s on the test VM to bring up Pi-hole, Unbound, Nginx Proxy Manager and Portainer, with no clicks in Portainer. The only manual step left is NPM's three proxy hosts, about 3 minutes.
+
+**Lose the server, get it back in about 5 minutes:** in a disaster-recovery drill, the test VM went from a bare Ubuntu install to DNS answering with its restored blocklists in **5 m 13 s** (target: 10 minutes), with nothing lost ([results](docs/runbooks/disaster-recovery.md)).
 
 ## What this will build
 
@@ -36,9 +38,9 @@ ansible-playbook playbooks/site.yml
 - Ansible reads the vault password from `~/.ansible/vault_pass.txt` (set in `ansible.cfg`, mode `600`, never in the repo). Without that file, every run fails.
 - `git config core.hooksPath scripts/hooks` turns on a `pre-commit` hook that refuses to commit a `vault.yml` that isn't encrypted. Run it once in every clone.
 
-Hosts and variables live in `inventories/test/`. Each role's settings and their defaults are in [`roles/base/`](roles/base/README.md), [`roles/docker/`](roles/docker/README.md), [`roles/dns_host/`](roles/dns_host/README.md), [`roles/portainer/`](roles/portainer/README.md) and [`roles/portainer_stacks/`](roles/portainer_stacks/README.md). `playbooks/site.yml` is one play that applies all five roles in that order. The order matters: `dns_host` must run before `portainer` (see its README).
+Hosts and variables live in `inventories/test/` (the default in `ansible.cfg`) and `inventories/prod/`, which is used only when named: `ansible-playbook -i inventories/prod playbooks/site.yml`. The two differ only in variables: the address, the user, DHCP and the secrets. Each role's settings and their defaults are in [`roles/base/`](roles/base/README.md), [`roles/docker/`](roles/docker/README.md), [`roles/dns_host/`](roles/dns_host/README.md), [`roles/portainer/`](roles/portainer/README.md), [`roles/portainer_stacks/`](roles/portainer_stacks/README.md) and [`roles/backup/`](roles/backup/README.md). `playbooks/site.yml` is one play that applies all six roles in that order. The order matters: `dns_host` must run before `portainer` (see its README).
 
-The vault file needs four secrets: `vault_ansible_become_password`, `vault_portainer_setup_token` (a long random value, for example from `openssl rand -hex 32`), `vault_portainer_admin_password` (at least 12 characters) and `vault_pihole_password`.
+Each inventory's vault file needs four secrets, with different values in test and prod: `vault_ansible_become_password`, `vault_portainer_setup_token` (a long random value, for example from `openssl rand -hex 32`), `vault_portainer_admin_password` (at least 12 characters) and `vault_pihole_password`.
 
 Run one part of the `base` role with tags: `updates`, `packages`, `system`, `ssh` or `firewall`. For example, `ansible-playbook playbooks/site.yml --tags firewall`. Preview any run with `--check --diff`.
 
@@ -48,7 +50,7 @@ The `portainer_stacks` role ([ADR 0006](docs/adr/0006-portainer-admin-setup-toke
 
 1. **The admin account** (`admin`), with the setup token and password from Vault, seconds after Portainer's first start.
 2. **The Git source** for this repo, polling `main` every 5 minutes.
-3. **The stacks** in `portainer_stacks_list`: `dns` (`stacks/dns/compose.yaml`, with `PIHOLE_PASSWORD` from Vault and `HOMELAB_IP` from the inventory's `ansible_host`) and `proxy` (`stacks/proxy/compose.yaml`). `PIHOLE_DHCP_ACTIVE` is left unset except in production: DHCP stays off unless it's `true`.
+3. **The stacks** in `portainer_stacks_list`: `dns` (`stacks/dns/compose.yaml`, with `PIHOLE_PASSWORD` from Vault and `HOMELAB_IP` from the inventory's `ansible_host`) and `proxy` (`stacks/proxy/compose.yaml`). In production the `dns` stack also gets `PIHOLE_DHCP_ACTIVE: "true"` and the DHCP scope (`PIHOLE_DHCP_START`, `PIHOLE_DHCP_END`, `PIHOLE_DHCP_ROUTER`, `PIHOLE_DHCP_LEASE_TIME`). They're unset on the test VM, so DHCP stays off there.
 
 After that, a push to `main` that changes a compose file is redeployed by Portainer on its next poll. Pi-hole answers `npm.home.arpa`, `pihole.home.arpa` and `portainer.home.arpa` with `HOMELAB_IP`. The role never updates a stack that already exists, so changing a stack's environment variables is still done in Portainer.
 
@@ -65,7 +67,20 @@ After that, a push to `main` that changes a compose file is redeployed by Portai
    | `pihole.home.arpa` | `http://172.20.0.1:8081` (`docker_proxy_gateway`) |
    | `portainer.home.arpa` | `https://portainer:9443`, websockets on |
 
-NPM's proxy hosts live in its own database, not in this repo; that gap is explained in ADR 0005.
+NPM's proxy hosts live in its own database, not in this repo; that gap is explained in ADR 0005. Since Week 9 they're in the nightly backup, so a rebuild can restore them instead of clicking them in again.
+
+### Backups and recovery
+
+The `backup` role ([ADR 0008](docs/adr/0008-backups.md)) backs up state, not config: only the four Docker volumes that `site.yml` and Git can't recreate (Pi-hole, NPM's data and certificates, Portainer).
+
+- **Nightly at 02:30**, from a systemd timer. Pi-hole, NPM and Portainer stop for about 6 seconds so their databases are copied in a consistent state.
+- **Archives** go to `/var/backups/homelab/` on the server, root-only, kept for 7 days. They hold password hashes and private keys.
+- **`ansible-playbook playbooks/backup-pull.yml`** copies the newest run to `~/homelab-backups/<host>/` on the control node, outside the repo.
+- **Restore** one volume, or everything after a rebuild: [restore runbook](docs/runbooks/restore.md). Targets and drill results: [disaster recovery](docs/runbooks/disaster-recovery.md) (RTO 10 minutes, RPO 24 hours).
+
+### CI
+
+[`.github/workflows/lint.yml`](.github/workflows/lint.yml) runs `ansible-lint` with the `production` profile on every push to `main` and every pull request, with the same Ansible and ansible-lint versions as the control node. The real vault password never reaches GitHub: on the runner, each `vault.yml` is replaced by a stub encrypted with a dummy password, so the playbooks can still be syntax-checked.
 
 ## Security
 
@@ -78,6 +93,7 @@ NPM's proxy hosts live in its own database, not in this repo; that gap is explai
 - HTTPS for every admin UI uses certificates from a private CA. Its key is passphrase-encrypted, kept outside Git, and can only sign names under `home.arpa` ([ADR 0005](docs/adr/0005-private-ca.md)).
 - Unbound listens on `127.0.0.1` only and validates DNSSEC; Pi-hole uses it as its only upstream. Pi-hole runs on the host network, so UFW covers its ports: DNS for the LAN, and the web UI only from the proxy network. DHCP stays off unless a variable turns it on.
 - GitHub secret scanning and push protection are on.
+- Backups are treated as secrets: root-only on the server, in a `0700` folder on the control node, never in the repo, and not copied off-site until they're encrypted ([ADR 0008](docs/adr/0008-backups.md)).
 - Private notes, the device inventory and Pi-hole backups never enter the repo (see `.gitignore`).
 - Known limitation: the home network is one flat subnet. VLAN segmentation is out of scope for v2 ([segmentation plan](docs/network/segmentation-plan.md)).
 
@@ -99,7 +115,7 @@ NPM's proxy hosts live in its own database, not in this repo; that gap is explai
 - [x] Week 6: DNS stack: Pi-hole + Unbound deployed from Git by Portainer, DNSSEC validated ([build log](docs/build-log/week-06.md), [ADR 0004](docs/adr/0004-unbound-image.md))
 - [x] Week 7: Nginx Proxy Manager, local names and HTTPS from a private CA ([build log](docs/build-log/week-07.md), [ADR 0005](docs/adr/0005-private-ca.md))
 - [x] Week 8: Portainer automated through its API: admin, Git source and stacks with no clicks, bare Ubuntu to working DNS in about 5 minutes ([build log](docs/build-log/week-08.md), [ADR 0006](docs/adr/0006-portainer-admin-setup-token.md))
-- [ ] Week 9: Backups, CI and a disaster-recovery drill
+- [x] Week 9: Nightly backups, `ansible-lint` in CI and a disaster-recovery drill: RTO 5 m 13 s ([build log](docs/build-log/week-09.md), [ADR 0008](docs/adr/0008-backups.md))
 - [ ] Week 10: Production cutover (v2.0.0)
 - [ ] Week 11: WireGuard remote access (v2.1.0)
 

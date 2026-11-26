@@ -10,7 +10,7 @@ How to put a backed-up Docker volume back on a server. Use it in two situations:
 | **Archives** | Made nightly at 02:30 by the `backup` role in `/var/backups/homelab/` on the server ([role README](../../roles/backup/README.md)). Copied to WSL by `playbooks/backup-pull.yml`, into `~/homelab-backups/<host>/` |
 | **Downtime** | Each restored container is stopped for a few seconds. Restoring `dns_pihole_data` means a few seconds without DNS for the whole LAN |
 | **Needs** | SSH to the server. The server user is in the `docker` group, so no `sudo` is needed: the restore runs in a throwaway container as root |
-| **Status** | Part 1 tested 2026-11-26 on the test VM: `proxy_npm_data` restored in place, undoing a disabled proxy host; file owners unchanged. Part 2: tested in the DR drill on _date_ |
+| **Status** | Tested 2026-11-26 on the test VM. Part 1: `proxy_npm_data` restored in place, undoing a disabled proxy host. Part 2: the disaster-recovery drill, RTO 5 m 13 s ([results](disaster-recovery.md)). File owners unchanged in both |
 
 ## What each archive holds
 
@@ -85,7 +85,7 @@ ssh "$HOST" "docker run --rm -v $VOLUME:/v:ro alpine:3.24.4 find /v -exec stat -
 diff /tmp/owners-before.txt /tmp/owners-after.txt    # see below
 ```
 
-The `diff` should print nothing, or only lines for files that are newer than the backup (a log file created since, for example: a `<` line with no matching `>` line). **A file listed on both sides with a different owner is a problem**: see Notes.
+The `diff` should print nothing, or only lines that appear on one side: `<` for a file that is newer than the backup (a log file created since), `>` for a file the backup brought back (after a rebuild, every list and cache file Pi-hole didn't have yet). **A file listed on both sides with a different owner is a problem**: see Notes.
 
 Then the check for that service:
 
@@ -124,12 +124,22 @@ Used in the disaster-recovery drill and in a real disaster. Start a timer at ste
    2. `proxy_npm_data` (container `npm`)
    3. `proxy_npm_letsencrypt` (container `npm`)
    4. `portainer_data` (container `portainer`), optional, see above
+
+   Steps 2–4 as one loop (same command as Part 1 step 4, once per volume; it prints each container name twice):
+   ```bash
+   SRC='~/restore'
+   for pair in proxy_npm_data:npm proxy_npm_letsencrypt:npm portainer_data:portainer; do
+     VOLUME=${pair%%:*}; CONTAINER=${pair##*:}
+     ssh "$HOST" "docker stop $CONTAINER && docker run --rm -v $VOLUME:/target -v $SRC:/restore:ro alpine:3.24.4 sh -c 'find /target -mindepth 1 -delete && tar -xzf /restore/${VOLUME}_${STAMP}.tar.gz -C /target' && docker start $CONTAINER"
+   done
+   ```
 4. **Check everything:** the Week 6 and Week 7 checklists from the build guide, and every check in Part 1 step 5.
 5. **Write down** in [disaster-recovery.md](disaster-recovery.md): the RTO, the stamp you restored and how old it was (the RPO in practice), and anything that didn't go as written here. Fix this runbook if a step was wrong.
 
 ## Notes
 
 - **File owners.** The archives are made and unpacked by BusyBox `tar` in an Alpine container, while Pi-hole and NPM run on other images. Owners are stored as numbers, but a user name that exists in both images with a different number could be mapped wrongly. Step 3 and step 5 compare numeric owners for that reason. If they differ, add `--numeric-owner` to the `tar` command here and in the backup script.
+- **Quote the whole remote command.** `ssh` joins its arguments into one line for the server's shell, so quotes inside an unquoted command are lost: `ssh host docker ps --format '{{.Names}}'` fails with "accepts no arguments". Write `ssh host "docker ps --format '{{.Names}}'"`: double quotes around the command, single quotes inside it.
 - **Pi-hole's password** comes from the stack's `PIHOLE_PASSWORD` variable, not from the restored `pihole.toml`, so the password in Vault keeps working after a restore.
 - **Mixing stamps:** restoring `proxy_npm_data` from one night and `proxy_npm_letsencrypt` from another is harmless today (the second is empty), but don't make it a habit.
 - **Restoring on another server** (Week 10, test → production): the same steps work, because both servers get the same volume names from Portainer. Proxy hosts and the certificate come across; Pi-hole's DHCP leases from the test VM are meaningless in production, so restore `dns_pihole_data` there only if you want its lists and settings.

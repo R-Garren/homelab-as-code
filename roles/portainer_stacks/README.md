@@ -9,7 +9,7 @@ Sets up Portainer through its API, so a fresh server needs no clicks in Portaine
 - Apply it last, after `docker`, `dns_host` and `portainer`:
   - `portainer` must start Portainer with `PORTAINER_SETUP_TOKEN` and `-H unix:///var/run/docker.sock`.
   - `dns_host` must run **before** `portainer`. It switches the server's DNS away from systemd-resolved's stub listener; a Portainer container created before that switch keeps forwarding DNS to the stub, can't resolve `github.com`, and stack creation fails with HTTP 500.
-- Portainer CE 2.45 (tested with 2.45.3). The API changed between releases: 2.45 uses Git sources (`SourceID`) and keeps the polling interval on the source.
+- Portainer CE 2.45 (tested with 2.45.3 and 2.45.4). The API changed between releases: 2.45 uses Git sources (`SourceID`) and keeps the polling interval on the source.
 
 ## What it does
 

@@ -29,6 +29,7 @@ services:
       FTLCONF_webserver_api_password: "${PIHOLE_PASSWORD}"
       FTLCONF_webserver_port: "8081"
       FTLCONF_dns_upstreams: "127.0.0.1#5335"
+      FTLCONF_dns_domain_name: "home.arpa"
       FTLCONF_dhcp_active: "${PIHOLE_DHCP_ACTIVE:-false}"
       FTLCONF_dhcp_start: "${PIHOLE_DHCP_START:-}"
       FTLCONF_dhcp_end: "${PIHOLE_DHCP_END:-}"

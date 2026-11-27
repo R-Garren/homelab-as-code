@@ -243,7 +243,7 @@ The proxy hosts point at container names and the Docker gateway (`172.20.0.1`), 
 **5.2 Move only the desktop onto Pi-hole.** This is the first real test of Pi-hole's DHCP, and it lets the desktop resolve the `home.arpa` names. Everyone else stays on the gateway until Phase 7.
 1. The desktop's hosts file still sends the three names to the test VM. In Notepad run as administrator, open `C:\Windows\System32\drivers\etc\hosts`, delete the `192.168.77.50 … home.arpa` line and save.
 2. In Command Prompt: `ipconfig /release`, `ipconfig /renew`, `ipconfig /flushdns`.
-3. ☐ `ipconfig /all`: 192.168.77.1xx, gateway 192.168.77.1, **DHCP server 192.168.77.10**, **DNS 192.168.77.10** only.
+3. ☐ `ipconfig /all`: 192.168.77.1xx, gateway 192.168.77.1, **DHCP server 192.168.77.10**, **DNS 192.168.77.10** only, and Connection-specific DNS Suffix **home.arpa**.
 
 `mark "desktop leased from Pi-hole"`
 

@@ -35,5 +35,8 @@ portainer_stacks_list:
 
 docker_users: [homelab]
 
+# The ThinkPad keeps running with its lid closed
+base_laptop_server: true
+
 # Prod is the household's DHCP server (from Week 10): opens UDP 67 in UFW
 dns_host_dhcp_active: true

@@ -33,3 +33,6 @@ base_auto_upgrades_autoclean_interval: 7
 base_auto_upgrades_reboot: true
 
 base_auto_upgrades_reboot_time: "04:00"
+
+# Laptop used as a server: keep running with the lid closed (prod only)
+base_laptop_server: false

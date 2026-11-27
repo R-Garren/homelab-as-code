@@ -18,3 +18,7 @@
 - name: Configure firewall
   ansible.builtin.import_tasks: firewall.yml
   tags: firewall
+
+- name: Configure laptop-as-server settings
+  ansible.builtin.import_tasks: laptop.yml
+  tags: laptop

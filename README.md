@@ -22,7 +22,7 @@ One Ubuntu Server 26.04 LTS host (a ThinkPad 11e) running:
 
 Ansible owns the host: packages, SSH, firewall, Docker and Portainer itself. Portainer owns the apps, deployed as Git-repository stacks from `stacks/`, so it has full control over them ([ADR 0003](docs/adr/0003-ansible-owns-host-portainer-owns-apps.md)). Every change runs on a Hyper-V test VM before it touches production ([ADR 0007](docs/adr/0007-test-vm-on-hyper-v.md)).
 
-Pinned image versions: Portainer CE `2.45.4` (LTS), Pi-hole `2026.11.0`, Unbound `1.26.2` (`klutchell/unbound`, also pinned by digest; see [ADR 0004](docs/adr/0004-unbound-image.md)), Nginx Proxy Manager `2.17.0` (also pinned by digest).
+Pinned image versions: Portainer CE `2.45.4` (LTS), Pi-hole `2026.11.0`, Unbound `1.26.2` (`klutchell/unbound`, also pinned by digest; see [ADR 0004](docs/adr/0004-unbound-image.md)), Nginx Proxy Manager `2.17.1` (also pinned by digest).
 
 ## Run it
 

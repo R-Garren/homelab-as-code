@@ -335,6 +335,7 @@ Stopped containers stay stopped (`restart: unless-stopped`), and Portainer only 
 
 **Tidy up**
 - ☐ Remove `Host homelab-v1` from WSL's `~/.ssh/config`. Retire the v1 key `ansible_homelab` (move it out of `~/.ssh/`, or delete it).
+- ☐ Rebuild the test VM so its stacks follow `main`. Until now they track `refs/heads/week-10`, which the squash-merge deleted. Apply the `01-fresh-install` checkpoint, run `ansible-playbook playbooks/site.yml` without `-e portainer_stacks_git_ref` (the stacks then come from `main`), and restore `dns_pihole_data`, `proxy_npm_data` and `proxy_npm_letsencrypt` from the Part 0 backup ([restore.md](restore.md) Part 1). Don't restore `portainer_data`: it would put the stacks back on `week-10`. Check that Portainer shows `dns` and `proxy` on `refs/heads/main`, then take a new checkpoint.
 - ☐ Write the measured RTO and the timeline from `~/cutover-<date>.log` into [disaster-recovery.md](disaster-recovery.md): install time, `site.yml` time, RTO, and what went differently from this runbook. Compare the RTO with the 10-minute target.
 - ☐ Update this runbook's Status line, and fix any step that was wrong.
 

@@ -28,7 +28,7 @@ All are in `defaults/main.yml` and can be overridden from `group_vars` or `host_
 
 | Variable | Default | What it sets |
 | --- | --- | --- |
-| `portainer_version` | `"2.45.3"` | Portainer CE LTS release to run. Pinned, never `latest`. Keep it quoted. |
+| `portainer_version` | `"2.45.4"` | Portainer CE LTS release to run. Pinned, never `latest`. Keep it quoted. |
 | `portainer_image` | `"portainer/portainer-ce:{{ portainer_version }}"` | Full image reference. |
 | `portainer_container_name` | `portainer` | Container name. |
 | `portainer_volume_name` | `portainer_data` | Named volume mounted at `/data`. |

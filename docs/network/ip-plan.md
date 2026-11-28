@@ -17,7 +17,7 @@ The AT&T BGW320 reportedly accepts 192.168.x.x and 172.16.x.x LAN ranges but not
 | Gateway | 192.168.77.1 (AT&T BGW320) |
 | DNS | 192.168.77.10 (Pi-hole) only |
 | DHCP server | Pi-hole (the BGW320's DHCP stays off) |
-| Local domain | home.arpa (set in the v2 build; v1 keeps `lan` until then) |
+| Local domain | home.arpa, given to DHCP clients by Pi-hole (`FTLCONF_dns_domain_name` in `stacks/dns/compose.yaml`; Pi-hole's default is `lan`, which v1 used) |
 
 ## Address ranges
 

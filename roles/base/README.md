@@ -1,6 +1,6 @@
 # Role: base
 
-The hardened starting point for every homelab server: patches the OS and keeps it patched, installs base packages, sets the timezone and hostname, hardens SSH and turns on a deny-by-default firewall. Each control is listed in [`docs/security-baseline.md`](../../docs/security-baseline.md).
+The hardened starting point for every homelab server: patches the OS and keeps it patched, installs base packages, sets the timezone and hostname, hardens SSH, turns on a deny-by-default firewall and, on a laptop used as a server, keeps it running with the lid closed. Each control is listed in [`docs/security-baseline.md`](../../docs/security-baseline.md).
 
 ## Requirements
 
@@ -18,6 +18,7 @@ The hardened starting point for every homelab server: patches the OS and keeps i
 | `system` | `tasks/system.yml` | Sets the timezone and sets the hostname from `inventory_hostname`. |
 | `ssh` | `tasks/ssh.yml` | Writes `/etc/ssh/sshd_config.d/10-hardening.conf`, tested with `sshd -t` before it's put in place, and restarts SSH only if the file changed. |
 | `firewall` | `tasks/firewall.yml` | Allows SSH with rate limiting, opens the ports in `base_ufw_allowed`, sets deny incoming and allow outgoing, then enables UFW. |
+| `laptop` | `tasks/laptop.yml` | When `base_laptop_server` is true, writes `/etc/systemd/logind.conf.d/10-lid-switch.conf` so closing the lid does nothing, and restarts `systemd-logind`. When it's false, removes that file again. |
 
 ## Variables
 
@@ -38,6 +39,7 @@ All are in `defaults/main.yml` and can be overridden from `group_vars` or `host_
 | `base_auto_upgrades_autoclean_interval` | `7` | Clear the downloaded package cache every N days. |
 | `base_auto_upgrades_reboot` | `true` | Reboot automatically when an update needs it. |
 | `base_auto_upgrades_reboot_time` | `"04:00"` | When that reboot happens. Keep it quoted: unquoted, YAML reads `04:00` as the number `240`. |
+| `base_laptop_server` | `false` | Ignore the lid switch (`HandleLidSwitch`, `HandleLidSwitchExternalPower` and `HandleLidSwitchDocked` set to `ignore`). Only `inventories/prod` sets it to `true`, for the ThinkPad. |
 
 The sshd values are quoted strings on purpose: unquoted, YAML reads `no` as `false` and the template would write `False`.
 
@@ -54,6 +56,7 @@ The sshd values are quoted strings on purpose: unquoted, YAML reads `no` as `fal
 ## Notes
 
 - Removing an entry from `base_ufw_allowed` doesn't close the port: Ansible only adds UFW rules.
+- The VM has no lid, so test `base_laptop_server` by its setting, not its behaviour: `busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager HandleLidSwitch` shows `s "ignore"` when it's on and `s "suspend"` when it's off.
 - Ports that Docker publishes for containers bypass UFW. See [Docker bypasses UFW](../../docs/security-baseline.md#docker-bypasses-ufw) in the security baseline.
 
 ## License

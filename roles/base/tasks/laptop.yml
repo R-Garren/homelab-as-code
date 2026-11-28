@@ -1,0 +1,28 @@
+---
+- name: Create the logind drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/logind.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: base_laptop_server | bool
+
+- name: Ignore the lid switch
+  ansible.builtin.template:
+    src: logind-lid-switch.conf.j2
+    dest: /etc/systemd/logind.conf.d/10-lid-switch.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: base_laptop_server | bool
+  notify:
+    - Restart systemd-logind
+
+- name: Remove the lid switch drop-in
+  ansible.builtin.file:
+    path: /etc/systemd/logind.conf.d/10-lid-switch.conf
+    state: absent
+  when: not (base_laptop_server | bool)
+  notify:
+    - Restart systemd-logind

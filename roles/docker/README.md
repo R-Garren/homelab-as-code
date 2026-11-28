@@ -1,6 +1,6 @@
 # Role: docker
 
-Installs Docker Engine and the Compose plugin from Docker's official apt repository, following [Docker's install guide for Ubuntu](https://docs.docker.com/engine/install/ubuntu/) step by step. It also turns on container log rotation, lets chosen users run Docker without `sudo`, installs what the `community.docker` modules need on the server, and creates the `proxy` network that Nginx Proxy Manager shares with the services behind it. Each control is listed in [`docs/security-baseline.md`](../../docs/security-baseline.md).
+Installs Docker Engine and the Compose plugin from Docker's official apt repository, following [Docker's install guide for Ubuntu](https://docs.docker.com/engine/install/ubuntu/) step by step. It also turns on container log rotation, keeps containers running while the Docker daemon restarts (live restore), lets chosen users run Docker without `sudo`, installs what the `community.docker` modules need on the server, and creates the `proxy` network that Nginx Proxy Manager shares with the services behind it. Each control is listed in [`docs/security-baseline.md`](../../docs/security-baseline.md).
 
 ## Requirements
 
@@ -26,11 +26,11 @@ All tasks are in `tasks/main.yml`, in this order:
 | Add users to the docker group | Adds each user in `docker_users` to `docker` (`append: true`, so their other groups stay). |
 | Reset the SSH connection | Makes the new group membership apply to the rest of the play. |
 | Create the Docker config directory | `/etc/docker`, mode `0755`. |
-| Configure Docker log rotation | Writes `/etc/docker/daemon.json` from `templates/daemon.json.j2`, checked with `dockerd --validate` before it's put in place, and notifies `Restart Docker`. |
+| Configure the Docker daemon | Writes `/etc/docker/daemon.json` from `templates/daemon.json.j2`: log rotation and `"live-restore": true`. The file is checked with `dockerd --validate` before it's put in place, and a change notifies `Restart Docker`. |
 | Create the shared proxy network | Creates the bridge network `docker_proxy_network` with a fixed subnet and gateway. NPM joins it from its stack, and the `portainer` role joins Portainer to it. |
 | Apply pending Docker restarts now | `meta: flush_handlers`: runs `Restart Docker` here instead of at the end of the play. Also runs any handler an earlier role notified, such as `base`'s SSH restart. |
 
-The `Restart Docker` handler runs only when `daemon.json` changed, at the end of this role. Restarting Docker stops running containers for a moment. Left to the end of the play, the restart came after `portainer_stacks` had asked Portainer to deploy the stacks, and cut those deployments off (Week 8), so the role flushes its handlers before any container starts.
+The `Restart Docker` handler runs only when `daemon.json` changed, at the end of this role. With live restore on, a restart leaves the running containers up. Docker still replaces the `docker-proxy` processes behind published ports, so Unbound's `127.0.0.1:5335` is closed for under a second, and NPM's ports go through the same kind of process. On the test VM (Week 10), a restart took about 1 s: 2 to 3 of about 160 lookups to Unbound were refused, and 1 of about 155 through Pi-hole timed out. Without live restore, every container restarted, and 12 to 19 lookups failed over about 5 s. The exception is the restart that turns live restore on, because the daemon that stops is the one started without it: on a host that already runs containers, they stop once. A fresh install gets the setting before any container exists. Left to the end of the play, the restart came after `portainer_stacks` had asked Portainer to deploy the stacks, and cut those deployments off (Week 8). Docker's API is still down while the daemon restarts, so the role flushes its handlers before any container starts.
 
 ## Variables
 
@@ -63,6 +63,10 @@ All are in `defaults/main.yml` and can be overridden from `group_vars` or `host_
 - `ansible.builtin.user` creates a user that doesn't exist, so a typo in `docker_users` creates a new account instead of failing. Watch for `changed` on that task.
 - **Changing the proxy network's subnet or gateway later means recreating it.** Docker can't change a network's addresses in place, and it refuses to remove a network that containers are still attached to. Stop NPM and Portainer first.
 - Log settings apply only to containers created after Docker restarts. Existing containers keep their old settings until they're recreated.
+- **Live restore covers patch upgrades only.** Docker supports it from one patch release to the next (`29.10.1` to `29.10.2`), not to a new major release (`29.x` to `30.x`), where the new daemon may not reconnect to the running containers and they have to be stopped by hand. Docker's packages aren't in the unattended-upgrades origins (only Ubuntu's security updates are), so every Docker upgrade is a manual `apt` step: plan a major upgrade like a container restart.
+- The handler restarts Docker rather than reloading it. `systemctl reload docker` would turn live restore on without a restart, but a reload doesn't apply every setting in `daemon.json` (the log settings among them), and with live restore on, a restart no longer stops the containers.
+- While the daemon is down, containers write their logs to a pipe that it normally reads. If it stayed down for a long time, a busy container could fill the 64 KB pipe and block until the daemon is back. A restart takes seconds.
+- Live restore doesn't work in Swarm mode, which this lab doesn't use.
 
 ## License
 

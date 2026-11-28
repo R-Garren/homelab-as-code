@@ -76,7 +76,7 @@
     group: root
     mode: '0755'
 
-- name: Configure Docker log rotation
+- name: Configure the Docker daemon (log rotation, live restore)
   ansible.builtin.template:
     src: daemon.json.j2
     dest: /etc/docker/daemon.json
@@ -96,6 +96,8 @@
     state: present
 
 # Restart Docker now if its config changed. Left to the end of the play, the
-# restart would kill containers that later roles start (Week 8 finding).
+# restart cut off the stack deployments portainer_stacks had started (Week 8).
+# live-restore keeps containers running, but the API is still down while
+# dockerd restarts, and the restart that turns live-restore on stops them.
 - name: Apply pending Docker restarts now
   ansible.builtin.meta: flush_handlers

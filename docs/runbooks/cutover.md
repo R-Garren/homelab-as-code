@@ -109,11 +109,13 @@ v1 can still be started again from here: power on, then reverse Phase 1.
 
 ## Phase 3: Install Ubuntu Server (about 20–30 minutes, not counted in the RTO)
 
-At the ThinkPad, boot the USB stick and install with these choices:
+At the ThinkPad, plug in the USB stick, power on, tap **F12** at the Lenovo logo and choose the stick, then **Try or Install Ubuntu Server**. Install with these choices:
 
-**3.1 Type of install:** Ubuntu Server (not the minimized version).
+**3.0 First screens:** Language **English**. If it offers an **installer update**, choose **Continue without updating**: these steps were checked against the installer on the stick, and `site.yml` updates the packages afterwards. Keyboard **English (US)**, so the password in 3.5 types the same as on the desktop.
 
-**3.2 Network:** choose the wired adapter (`enp5s0` on v1) → **Edit IPv4** → **Manual**:
+**3.1 Type of install:** Ubuntu Server (not the minimized version). Leave **Search for third-party drivers** unticked.
+
+**3.2 Network:** choose the wired adapter `enp5s0` (ignore the Wi-Fi adapter `wlp3s0`) → **Edit IPv4** → **Manual**:
 
 | Field | Value |
 |---|---|
@@ -125,7 +127,9 @@ At the ThinkPad, boot the USB stick and install with these choices:
 
 The server must not use itself for DNS: Pi-hole doesn't exist yet when `site.yml` installs packages, and later the server would lose DNS every time Pi-hole restarts.
 
-**3.3 Storage:** use the entire disk, **Set up this disk as an LVM group** ticked. On the summary screen, select `ubuntu-lv` → **Edit** → set the size to the maximum shown. (The installer's default uses only about half the disk; the test VM needed `lvextend` afterwards.)
+Then **Proxy**: leave it empty → **Done**. **Mirror**: keep the suggested mirror → **Done** once its test passes.
+
+**3.3 Storage:** use the entire disk, the 238.5 GB SanDisk SSD (`sda`; not the USB stick if it's listed), **Set up this disk as an LVM group** ticked, encryption off. On the summary screen, select `ubuntu-lv` → **Edit** → set the size to the maximum shown. (The installer's default uses only about half the disk; the test VM needed `lvextend` afterwards.)
 
 **3.4 Confirm destructive action → Continue. ⚠️ This is the point of no return:** v1's disk is erased.
 
@@ -142,7 +146,7 @@ The server must not use itself for DNS: Pi-hole doesn't exist yet when `site.yml
 
 **3.6** Skip Ubuntu Pro. **Install OpenSSH server: on.** Allow password authentication over SSH: **on** for now, because `ssh-copy-id` needs it once; the `base` role turns it off. Import SSH key: no. Featured snaps: none.
 
-**3.7** When it says **Reboot now**, remove the USB stick and reboot.
+**3.7** After the install, the installer downloads and installs security updates, which can take several minutes. If that runs past about 10 minutes, **Cancel update and reboot** is safe, because `site.yml` upgrades the packages. When it says **Reboot now**, select it; at **Please remove the installation medium, then press ENTER**, remove the USB stick and press Enter.
 
 **3.8 At the ThinkPad's console,** log in as `homelab` and check the fresh install before Ansible touches it:
 ```bash

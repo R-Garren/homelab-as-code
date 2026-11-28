@@ -32,11 +32,11 @@ From the build guide's "Before Week 10: Pre-cutover prep", Part E. Tick these of
 - ☐ **Ubuntu Server 26.04.1 USB stick** written, and its SHA256 checksum matches the one on ubuntu.com.
 - ☐ **ThinkPad BIOS checked:** USB boots first (or you know the one-time boot menu key), and Secure Boot is on, with Microsoft's UEFI CA allowed.
 - ☐ **WSL `~/.ssh/config`** has a `Host homelab-prod` entry: `HostName 192.168.77.10`, `User homelab`, `IdentityFile ~/.ssh/homelab_v2`, `IdentitiesOnly yes`.
-- ☐ **Fresh backup of the test VM, pulled to WSL.** Check that NPM's three proxy hosts are present on the VM first, then on the VM run `sudo systemctl start homelab-backup.service`, and in WSL run `ansible-playbook playbooks/backup-pull.yml`. Write its stamp here: `STAMP=__________`
+- ☐ **Fresh backup of the test VM, pulled to WSL.** Check that NPM's three proxy hosts are present on the VM first, then on the VM run `sudo systemctl start homelab-backup.service`, and in WSL run `ansible-playbook playbooks/backup-pull.yml`. Stamp: `STAMP=2026-11-28_1059` (taken 2026-11-28)
 - ☐ **v1 Teleporter export** in WSL `~/v1-export/` (Part A, 2026-11-27). Copy it to the desktop's Downloads folder too, because the import in Phase 5 happens in the browser.
 - ☐ **Prod become password** in Bitwarden: the installer's password must be the same as `vault_ansible_become_password` in `inventories/prod/group_vars/all/vault.yml`.
 - ☐ **`private/v1-dhcp-facts.md`** open: it has the five DHCP reservations to recreate in Phase 5.
-- ☐ **Decided how Pi-hole's lists come across:** v1's lists through a Teleporter import (the default in Phase 5), or the test VM's lists by restoring `dns_pihole_data`. Write down which: `__________`
+- ☐ **Decided how Pi-hole's lists come across:** v1's lists through a Teleporter import (the default in Phase 5), or the test VM's lists by restoring `dns_pihole_data`. Chosen: **v1's lists through the Teleporter import** (2026-11-28)
 - ☐ **This runbook saved offline** on the phone. The internet may be patchy, and the server is down for part of the session.
 - ☐ **Date set and household told:** about an hour without ad-blocking, the internet stays up, Wi-Fi drops for a few minutes twice. Anyone with trouble afterwards should turn Wi-Fi off and on again.
 
@@ -227,7 +227,7 @@ Three kinds of data come across, and two must **not**:
 This is the same command as [restore.md](restore.md) Part 1 step 4, with the archives from the test VM and the server set to prod:
 ```bash
 HOST=homelab-prod
-STAMP=__________                         # the test VM backup from Part 0
+STAMP=2026-11-28_1059                    # the test VM backup from Part 0
 ssh "$HOST" 'mkdir -p -m 700 ~/restore'
 scp ~/homelab-backups/test-homelab/proxy_npm_*_${STAMP}.tar.gz "$HOST":restore/
 SRC='~/restore'
@@ -335,6 +335,7 @@ Stopped containers stay stopped (`restart: unless-stopped`), and Portainer only 
 
 **Tidy up**
 - ☐ Remove `Host homelab-v1` from WSL's `~/.ssh/config`. Retire the v1 key `ansible_homelab` (move it out of `~/.ssh/`, or delete it).
+- ☐ Delete the copy of the v1 Teleporter export from the desktop's Downloads folder. It holds v1's settings and password hash as well as the lists.
 - ☐ Rebuild the test VM so its stacks follow `main`. Until now they track `refs/heads/week-10`, which the squash-merge deleted. Apply the `01-fresh-install` checkpoint, run `ansible-playbook playbooks/site.yml` without `-e portainer_stacks_git_ref` (the stacks then come from `main`), and restore `dns_pihole_data`, `proxy_npm_data` and `proxy_npm_letsencrypt` from the Part 0 backup ([restore.md](restore.md) Part 1). Don't restore `portainer_data`: it would put the stacks back on `week-10`. Check that Portainer shows `dns` and `proxy` on `refs/heads/main`, then take a new checkpoint.
 - ☐ Write the measured RTO and the timeline from `~/cutover-<date>.log` into [disaster-recovery.md](disaster-recovery.md): install time, `site.yml` time, RTO, and what went differently from this runbook. Compare the RTO with the 10-minute target.
 - ☐ Update this runbook's Status line, and fix any step that was wrong.
